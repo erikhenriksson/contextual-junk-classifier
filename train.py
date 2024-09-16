@@ -26,13 +26,12 @@ def run(data_path, mode, do_train):
     model_name = "xlm-roberta-base"
     tokenizer = XLMRobertaTokenizer.from_pretrained(model_name)
 
-    #train_data, dev_data, test_data, num_labels = get_data(data_path, mode)
+    # train_data, dev_data, test_data, num_labels = get_data(data_path, mode)
 
-    #eval_data = get_eval_data("eval.json", mode)
+    # eval_data = get_eval_data("eval.json", mode)
 
     _, _, eval_data, num_labels = get_data(data_path, mode)
-    train_data, dev_data, test_data = get_eval_data("eval.json", mode, True)
-    num_labels = 2
+    train_data, dev_data, test_data, num_labels = get_eval_data("eval.json", mode, True)
 
     # Create datasets
     train_dataset = ContextualTextDataset(train_data, tokenizer)

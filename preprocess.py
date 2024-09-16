@@ -143,4 +143,6 @@ def get_data(file_path, mode):
     print("Dev Label Distribution:", dev_distribution)
     print("Test Label Distribution:", test_distribution)
 
+    print(train_data[0])
+
     return train_data, dev_data, test_data, len(unique_sorted_labels)

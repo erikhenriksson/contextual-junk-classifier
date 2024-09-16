@@ -4,7 +4,6 @@ from sklearn.metrics import (
     accuracy_score,
     precision_recall_fscore_support,
     classification_report,
-    f1_score,
 )
 
 os.environ["HF_HOME"] = ".hf/hf_home"
@@ -19,25 +18,35 @@ from transformers import (
 from model import ContextualXLMRobertaForSequenceClassification
 from data import ContextualDataCollator, ContextualTextDataset
 from preprocess import get_data
+from preprocess_eval import get_eval_data
 
 
-def run(data_path, mode):
+def run(data_path, mode, do_train):
 
     model_name = "xlm-roberta-base"
     tokenizer = XLMRobertaTokenizer.from_pretrained(model_name)
 
     train_data, dev_data, test_data, num_labels = get_data(data_path, mode)
 
+    eval_data = get_eval_data("eval.json", mode)
+
     # Create datasets
     train_dataset = ContextualTextDataset(train_data, tokenizer)
     dev_dataset = ContextualTextDataset(dev_data, tokenizer)
     test_dataset = ContextualTextDataset(test_data, tokenizer)
+    eval_dataset = ContextualTextDataset(eval_data, tokenizer)
 
     print(train_dataset[0])
-
-    model = ContextualXLMRobertaForSequenceClassification.from_pretrained(
-        model_name, num_labels=num_labels
-    )
+    print(eval_dataset[0])
+    exit()
+    if do_train:
+        model = ContextualXLMRobertaForSequenceClassification.from_pretrained(
+            model_name, num_labels=num_labels
+        )
+    else:
+        model = ContextualXLMRobertaForSequenceClassification.from_pretrained(
+            "./results"
+        )
 
     data_collator = ContextualDataCollator(tokenizer)
 
@@ -119,9 +128,13 @@ def run(data_path, mode):
         compute_metrics=compute_metrics,
         callbacks=[EarlyStoppingCallback(early_stopping_patience=3)],
     )
-
-    trainer.train()
+    if do_train:
+        trainer.train()
 
     # Evaluate on the test set
     test_results = trainer.evaluate(eval_dataset=test_dataset)
     print("Test Results:", test_results)
+
+    # Evaluate on the test set
+    eval_results = trainer.evaluate(eval_dataset=eval_dataset)
+    print("Manual evaluation results:", eval_results)

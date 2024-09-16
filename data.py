@@ -91,6 +91,11 @@ class ContextualTextDataset(Dataset):
                 if i < len(target_mask):
                     target_mask[i] = 1
 
+        if len(input_ids) > self.max_length:
+            print("Warning: input_ids exceed max_length")
+
+            print(len(input_ids))
+
         return {
             "input_ids": input_ids,
             "attention_mask": attention_mask,

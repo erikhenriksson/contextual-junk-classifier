@@ -65,8 +65,13 @@ def run(data_path, mode):
 
         # Classification report
         class_report = classification_report(
-            labels, preds, target_names=["Clean", "Junk"]
+            labels, preds, target_names=["clean", "junk"]
         )
+
+        precision_per_class = precision_per_class.tolist()
+        recall_per_class = recall_per_class.tolist()
+        f1_per_class = f1_per_class.tolist()
+        support_per_class = support_per_class.tolist()
 
         print("Classification Report:")
         print(class_report)

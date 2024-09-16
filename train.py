@@ -48,7 +48,7 @@ def run(data_path, mode, do_train):
         )
     else:
         model = ContextualXLMRobertaForSequenceClassification.from_pretrained(
-            "./results/checkpoint-2250"
+            "./results2/checkpoint-2250"
         )
 
     data_collator = ContextualDataCollator(tokenizer)
@@ -103,7 +103,7 @@ def run(data_path, mode, do_train):
         }
 
     training_args = TrainingArguments(
-        output_dir="./results",
+        output_dir="./results2",
         evaluation_strategy="steps",
         eval_steps=250,
         learning_rate=2e-5,

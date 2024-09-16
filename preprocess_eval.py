@@ -63,7 +63,7 @@ def create_context_window(doc, base_label_idx, unique_sorted_labels, window_size
     return context_windows
 
 
-def get_eval_data(file_path, mode):
+def get_eval_data(file_path, mode, split=False):
 
     parsed_data = read_json_to_list(file_path, mode)
     unique_sorted_labels, counts = get_unique_sorted_labels(parsed_data)
@@ -76,5 +76,39 @@ def get_eval_data(file_path, mode):
         texts += create_context_window(
             doc, base_label_idx, unique_sorted_labels, window_size=1
         )
+    if not split:
+        return np.array(texts)
 
-    return np.array(texts)
+    else:
+
+        def get_label_distribution(dataset):
+            labels = [example["label"] for example in dataset]
+            return Counter(labels)
+
+        labels = np.array([item["label"] for item in texts])
+
+        train_data, dev_test_data = train_test_split(
+            texts, test_size=0.3, stratify=labels, random_state=42
+        )
+        dev_test_labels = [item["label"] for item in dev_test_data]
+        dev_data, test_data = train_test_split(
+            dev_test_data, test_size=2 / 3, stratify=dev_test_labels, random_state=42
+        )
+
+        print(f"Train size: {len(train_data)}")
+        print(f"Dev size: {len(dev_data)}")
+        print(f"Test size: {len(test_data)}")
+
+        # Get label distributions for each split
+        train_distribution = get_label_distribution(train_data)
+        dev_distribution = get_label_distribution(dev_data)
+        test_distribution = get_label_distribution(test_data)
+
+        # Print distributions to inspect
+        print("Train Label Distribution:", train_distribution)
+        print("Dev Label Distribution:", dev_distribution)
+        print("Test Label Distribution:", test_distribution)
+
+        print(train_data[0])
+
+        return train_data, dev_data, test_data, len(unique_sorted_labels)

@@ -38,7 +38,7 @@ def run(data_path, mode, do_train):
 
     print(train_dataset[0])
     print(eval_dataset[0])
-    exit()
+
     if do_train:
         model = ContextualXLMRobertaForSequenceClassification.from_pretrained(
             model_name, num_labels=num_labels

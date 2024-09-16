@@ -1,6 +1,11 @@
 import os
 import numpy as np
-from sklearn.metrics import classification_report, f1_score
+from sklearn.metrics import (
+    accuracy_score,
+    precision_recall_fscore_support,
+    classification_report,
+    f1_score,
+)
 
 os.environ["HF_HOME"] = ".hf/hf_home"
 
@@ -8,6 +13,7 @@ from transformers import (
     XLMRobertaTokenizer,
     Trainer,
     TrainingArguments,
+    EarlyStoppingCallback,
 )
 
 from model import ContextualXLMRobertaForSequenceClassification
@@ -39,18 +45,44 @@ def run(data_path, mode):
         predictions, labels = p
         preds = np.argmax(predictions, axis=1)
 
-        micro_f1 = f1_score(labels, preds, average="micro")
-        macro_f1 = f1_score(labels, preds, average="macro")
+        # Overall accuracy
+        accuracy = accuracy_score(labels, preds)
 
-        class_report = classification_report(labels, preds, output_dict=True)
+        # Precision, Recall, F1-score (weighted average)
+        precision_weighted, recall_weighted, f1_weighted, _ = (
+            precision_recall_fscore_support(labels, preds, average="weighted")
+        )
+
+        # Precision, Recall, F1-score (macro average)
+        precision_macro, recall_macro, f1_macro, _ = precision_recall_fscore_support(
+            labels, preds, average="macro"
+        )
+
+        # Per-class precision, recall, F1-score
+        precision_per_class, recall_per_class, f1_per_class, support_per_class = (
+            precision_recall_fscore_support(labels, preds, average=None)
+        )
+
+        # Classification report
+        class_report = classification_report(
+            labels, preds, target_names=["Clean", "Junk"]
+        )
 
         print("Classification Report:")
-        print(classification_report(labels, preds))
+        print(class_report)
 
         return {
-            "micro_f1": micro_f1,
-            "macro_f1": macro_f1,
-            "class_report": class_report,
+            "accuracy": accuracy,
+            "precision_weighted": precision_weighted,
+            "recall_weighted": recall_weighted,
+            "f1_weighted": f1_weighted,
+            "precision_macro": precision_macro,
+            "recall_macro": recall_macro,
+            "f1_macro": f1_macro,
+            "precision_per_class": precision_per_class,
+            "recall_per_class": recall_per_class,
+            "f1_per_class": f1_per_class,
+            "support_per_class": support_per_class,
         }
 
     training_args = TrainingArguments(
@@ -63,12 +95,15 @@ def run(data_path, mode):
         num_train_epochs=5,
         weight_decay=0.01,
         save_total_limit=2,
-        save_steps=500,
+        save_steps=250,  # Ensure save_steps aligns with eval_steps
         logging_dir="./logs",
         remove_unused_columns=False,
+        load_best_model_at_end=True,
+        metric_for_best_model="eval_f1_weighted",
+        greater_is_better=True,
     )
 
-    # Initialize trainer
+    # Initialize trainer with the EarlyStoppingCallback
     trainer = Trainer(
         model=model,
         args=training_args,
@@ -77,6 +112,7 @@ def run(data_path, mode):
         tokenizer=tokenizer,
         data_collator=data_collator,
         compute_metrics=compute_metrics,
+        callbacks=[EarlyStoppingCallback(early_stopping_patience=3)],
     )
 
     trainer.train()

@@ -4,7 +4,29 @@ from transformers import XLMRobertaForSequenceClassification, XLMRobertaModel
 from transformers.modeling_outputs import SequenceClassifierOutput
 
 
-class ContextualXLMRobertaForSequenceClassification(
+class CustomClassificationHead(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        self.dense = nn.Linear(config.hidden_size, config.hidden_size)
+        classifier_dropout = (
+            config.classifier_dropout
+            if config.classifier_dropout is not None
+            else config.hidden_dropout_prob
+        )
+        self.dropout = nn.Dropout(classifier_dropout)
+        self.out_proj = nn.Linear(config.hidden_size, config.num_labels)
+
+    def forward(self, x):
+        # x is of shape (batch_size, hidden_size)
+        x = self.dropout(x)
+        x = self.dense(x)
+        x = torch.tanh(x)
+        x = self.dropout(x)
+        x = self.out_proj(x)
+        return x
+
+
+class ContextualLossXLMRobertaForSequenceClassification(
     XLMRobertaForSequenceClassification
 ):
     def __init__(self, config):
@@ -12,9 +34,8 @@ class ContextualXLMRobertaForSequenceClassification(
         self.num_labels = config.num_labels
         self.config = config
 
-        # Use the default roberta and classifier modules
         self.roberta = XLMRobertaModel(config, add_pooling_layer=False)
-        # The default classification head is already defined as self.classifier
+        self.classifier = CustomClassificationHead(config)
 
         # Initialize weights and apply final processing
         self.post_init()
@@ -42,6 +63,7 @@ class ContextualXLMRobertaForSequenceClassification(
         outputs = self.roberta(
             input_ids,
             attention_mask=attention_mask,
+            token_type_ids=token_type_ids,  # XLM-RoBERTa doesn't use token_type_ids
             position_ids=position_ids,
             head_mask=head_mask,
             inputs_embeds=inputs_embeds,
@@ -53,67 +75,79 @@ class ContextualXLMRobertaForSequenceClassification(
         # Get the sequence output
         sequence_output = outputs[0]  # Shape: (batch_size, seq_length, hidden_size)
 
+        loss = None
+
         if target_mask is not None:
             # Ensure target_mask is of shape (batch_size, seq_length)
-            target_mask = target_mask.to(sequence_output.device).unsqueeze(
-                -1
-            )  # Shape: (batch_size, seq_length, 1)
+            target_mask = target_mask.to(sequence_output.device).bool()
 
-            # Mask the sequence output to keep only target token representations
-            target_hidden_states = (
-                sequence_output * target_mask.float()
-            )  # Shape: (batch_size, seq_length, hidden_size)
+            # Get indices of target tokens
+            target_indices = target_mask.nonzero(
+                as_tuple=False
+            )  # Shape: (num_target_tokens, 2)
 
-            # Sum over the sequence length dimension to aggregate target tokens
-            target_sum = target_hidden_states.sum(
-                dim=1
-            )  # Shape: (batch_size, hidden_size)
+            # Extract the hidden states of the target tokens
+            target_hidden_states = sequence_output[
+                target_indices[:, 0], target_indices[:, 1], :
+            ]  # Shape: (num_target_tokens, hidden_size)
 
-            # Count the number of target tokens per example to compute mean pooling
-            target_count = target_mask.sum(dim=1).clamp(
-                min=1e-9
-            )  # Shape: (batch_size, 1)
+            # Pass through the classifier
+            logits = self.classifier(
+                target_hidden_states
+            )  # Shape: (num_target_tokens, num_labels)
 
-            # Compute the mean of target token representations
-            pooled_output = (
-                target_sum / target_count
-            )  # Shape: (batch_size, hidden_size)
+            # Get labels per token (repeat labels for each target token)
+            if labels is not None:
+                labels_per_token = labels[
+                    target_indices[:, 0]
+                ]  # Shape: (num_target_tokens,)
+
+                # Compute loss
+                if self.config.problem_type is None:
+                    if self.num_labels == 1:
+                        self.config.problem_type = "regression"
+                    else:
+                        self.config.problem_type = "single_label_classification"
+
+                if self.config.problem_type == "regression":
+                    loss_fct = nn.MSELoss()
+                    loss = loss_fct(logits.view(-1), labels_per_token.float())
+                elif self.config.problem_type == "single_label_classification":
+                    loss_fct = nn.CrossEntropyLoss()
+                    loss = loss_fct(
+                        logits.view(-1, self.num_labels), labels_per_token.view(-1)
+                    )
+                else:
+                    loss_fct = nn.BCEWithLogitsLoss()
+                    loss = loss_fct(logits, labels_per_token.float())
+
         else:
             # Default behavior: use the representation of the <s> token
             pooled_output = sequence_output[:, 0, :]  # Shape: (batch_size, hidden_size)
 
-        # Pass the pooled output through the classifier
-        logits = self.classifier(pooled_output)  # Shape: (batch_size, num_labels)
+            # Pass through the classifier
+            logits = self.classifier(pooled_output)
 
-        # Initialize loss to None
-        loss = None
+            # Compute loss
+            if labels is not None:
+                if self.config.problem_type is None:
+                    if self.num_labels == 1:
+                        self.config.problem_type = "regression"
+                    else:
+                        self.config.problem_type = "single_label_classification"
 
-        # Compute loss if labels are provided
-        if labels is not None:
-            # Determine problem type if not specified
-            if self.config.problem_type is None:
-                if self.num_labels == 1:
-                    self.config.problem_type = "regression"
-                elif labels.dtype in (torch.long, torch.int):
-                    self.config.problem_type = "single_label_classification"
+                if self.config.problem_type == "regression":
+                    loss_fct = nn.MSELoss()
+                    loss = loss_fct(logits.view(-1), labels.view(-1))
+                elif self.config.problem_type == "single_label_classification":
+                    loss_fct = nn.CrossEntropyLoss()
+                    loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
                 else:
-                    self.config.problem_type = "multi_label_classification"
+                    loss_fct = nn.BCEWithLogitsLoss()
+                    loss = loss_fct(logits, labels.float())
 
-            # Choose appropriate loss function
-            if self.config.problem_type == "regression":
-                loss_fct = nn.MSELoss()
-                loss = loss_fct(logits.view(-1), labels.view(-1).float())
-            elif self.config.problem_type == "single_label_classification":
-                loss_fct = nn.CrossEntropyLoss()
-                loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
-            elif self.config.problem_type == "multi_label_classification":
-                loss_fct = nn.BCEWithLogitsLoss()
-                loss = loss_fct(logits, labels.float())
-        # Return outputs
         if not return_dict:
-            output = (logits,) + outputs[
-                2:
-            ]  # Skip hidden_states and attentions if not requested
+            output = (logits,) + outputs[2:]
             return ((loss,) + output) if loss is not None else output
 
         # Return the standard output format

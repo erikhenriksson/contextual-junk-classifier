@@ -54,11 +54,15 @@ def run(args):
         test_data = manual_test_data
         eval_data = llm_test_data
 
+    print("Example train data:", train_data[0])
+
     # Create datasets
     train_dataset = ContextualTextDataset(train_data, tokenizer)
     dev_dataset = ContextualTextDataset(dev_data, tokenizer)
     test_dataset = ContextualTextDataset(test_data, tokenizer)
     eval_dataset = ContextualTextDataset(eval_data, tokenizer)
+
+    print("Tokenized:", train_dataset[0])
 
     if do_train:
         model = model_cls.from_pretrained(model_name, num_labels=num_labels)

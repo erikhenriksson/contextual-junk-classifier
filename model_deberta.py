@@ -2,6 +2,8 @@ from transformers import DebertaV2PreTrainedModel, DebertaV2Model
 import torch
 import torch.nn as nn
 from transformers.modeling_outputs import SequenceClassifierOutput
+from transformers.modeling_utils import StableDropout
+from transformers.models.deberta_v2.modeling_deberta_v2 import ContextPooler
 
 
 class ContextualDebertaV2ForSequenceClassification(DebertaV2PreTrainedModel):

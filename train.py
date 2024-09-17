@@ -34,7 +34,7 @@ def run(args):
         tokenizer = DebertaV2Tokenizer.from_pretrained(model_name)
 
     llm_train_data, llm_dev_data, llm_test_data, num_labels = get_data(
-        args.data_path, "jsonl", args.mode, 0.5, args.line_window
+        args.data_path, "jsonl", args.mode, 0.3, args.line_window
     )
 
     manual_train_data, manual_dev_data, manual_test_data, _ = get_data(
@@ -126,7 +126,7 @@ def run(args):
         output_dir=f"./results_{args.data_source}",
         evaluation_strategy="steps",
         eval_steps=250,
-        learning_rate=5e-5,
+        learning_rate=3e-5,
         per_device_train_batch_size=8,
         per_device_eval_batch_size=8,
         num_train_epochs=5,

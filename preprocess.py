@@ -219,7 +219,7 @@ def get_data(
         create_context_windows(
             data_test,
             base_label_idx,
-            window_size=window_size,
+            window_size=1,
         ),
         base_label_idx,
         downsample_ratio,
@@ -228,7 +228,7 @@ def get_data(
         create_context_windows(
             data_dev,
             base_label_idx,
-            window_size=window_size,
+            window_size=1,
         ),
         base_label_idx,
         downsample_ratio,

@@ -27,14 +27,14 @@ def run(args):
     do_train = args.train == "yes"
     model_name = args.model_name
     if "roberta" in model_name:
-        model_cls = ContextualLossXLMRobertaForSequenceClassification
+        model_cls = ContextualXLMRobertaForSequenceClassification
         tokenizer = XLMRobertaTokenizer.from_pretrained(model_name)
     elif "deberta" in model_name:
         model_cls = ContextualDebertaV2ForSequenceClassification
         tokenizer = DebertaV2Tokenizer.from_pretrained(model_name)
 
     llm_train_data, llm_dev_data, llm_test_data, num_labels = get_data(
-        args.data_path, "jsonl", args.mode, 0.3, args.line_window
+        args.data_path, "jsonl", args.mode, 0.25, args.line_window
     )
 
     manual_train_data, manual_dev_data, manual_test_data, _ = get_data(

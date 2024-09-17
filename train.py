@@ -27,7 +27,7 @@ def run(args):
     do_train = args.train == "yes"
     model_name = args.model_name
     if "roberta" in model_name:
-        model_cls = ContextualLossXLMRobertaForSequenceClassification
+        model_cls = ContextualXLMRobertaForSequenceClassification
         tokenizer = XLMRobertaTokenizer.from_pretrained(model_name)
     elif "deberta" in model_name:
         model_cls = ContextualDebertaV2ForSequenceClassification
@@ -126,7 +126,7 @@ def run(args):
         output_dir=f"./results_{args.data_source}",
         evaluation_strategy="steps",
         eval_steps=250,
-        learning_rate=1e-5,
+        learning_rate=5e-5,
         per_device_train_batch_size=8,
         per_device_eval_batch_size=8,
         num_train_epochs=5,

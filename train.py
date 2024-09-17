@@ -116,18 +116,19 @@ def run(args):
         output_dir=f"./results_{args.data_source}",
         evaluation_strategy="steps",
         eval_steps=250,
-        learning_rate=2e-5,
+        learning_rate=1e-5,
         per_device_train_batch_size=8,
         per_device_eval_batch_size=8,
         num_train_epochs=5,
+        warmup_ratio=0.05,
         weight_decay=0.01,
         save_total_limit=2,
         save_steps=250,  # Ensure save_steps aligns with eval_steps
         logging_dir="./logs",
         remove_unused_columns=False,
         load_best_model_at_end=True,
-        metric_for_best_model="eval_f1_weighted",
-        greater_is_better=True,
+        metric_for_best_model="eval_loss",
+        greater_is_better=False,
     )
 
     # Initialize trainer with the EarlyStoppingCallback
@@ -143,6 +144,7 @@ def run(args):
     )
     if do_train:
         trainer.train()
+        trainer.save_model()
 
     # Evaluate on the test set
     test_results = trainer.evaluate(eval_dataset=test_dataset)

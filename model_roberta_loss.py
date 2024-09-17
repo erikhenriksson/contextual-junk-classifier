@@ -81,46 +81,70 @@ class ContextualLossXLMRobertaForSequenceClassification(
             # Ensure target_mask is of shape (batch_size, seq_length)
             target_mask = target_mask.to(sequence_output.device).bool()
 
-            # Get indices of target tokens
-            target_indices = target_mask.nonzero(
-                as_tuple=False
-            )  # Shape: (num_target_tokens, 2)
+            # Expand target_mask to match the hidden size
+            target_mask_expanded = target_mask.unsqueeze(-1).expand_as(sequence_output)
 
-            # Extract the hidden states of the target tokens
-            target_hidden_states = sequence_output[
-                target_indices[:, 0], target_indices[:, 1], :
-            ]  # Shape: (num_target_tokens, hidden_size)
+            # Mask the sequence output to get target token hidden states
+            target_hidden_states = sequence_output.masked_select(
+                target_mask_expanded
+            ).view(-1, sequence_output.size(-1))
+            # Shape: (total_target_tokens_in_batch, hidden_size)
 
             # Pass through the classifier
-            logits = self.classifier(
-                target_hidden_states
-            )  # Shape: (num_target_tokens, num_labels)
+            logits_per_token = self.classifier(target_hidden_states)
+            # Shape: (total_target_tokens_in_batch, num_labels)
 
-            # Get labels per token (repeat labels for each target token)
+            # Get batch indices for each target token
+            batch_indices = target_mask.nonzero(as_tuple=False)[:, 0]
+            # Shape: (total_target_tokens_in_batch,)
+
+            # Aggregate logits per example (average over target tokens)
+            batch_size = input_ids.size(0)
+            num_labels = self.num_labels
+
+            # Initialize tensors to accumulate logits
+            aggregated_logits = torch.zeros(
+                batch_size, num_labels, device=sequence_output.device
+            )
+            counts = torch.zeros(batch_size, device=sequence_output.device)
+
+            # Sum logits per example
+            aggregated_logits = aggregated_logits.index_add(
+                0, batch_indices, logits_per_token
+            )
+            # Count number of target tokens per example
+            counts = counts.index_add(
+                0,
+                batch_indices,
+                torch.ones_like(
+                    batch_indices, dtype=torch.float, device=sequence_output.device
+                ),
+            )
+
+            # Avoid division by zero
+            counts = counts.clamp(min=1e-9).unsqueeze(-1)
+
+            # Compute average logits per example
+            logits = aggregated_logits / counts
+            # Shape: (batch_size, num_labels)
+
+            # Compute loss if labels are provided
             if labels is not None:
-                labels_per_token = labels[
-                    target_indices[:, 0]
-                ]  # Shape: (num_target_tokens,)
-
-                # Compute loss
+                # Use existing loss computation logic
                 if self.config.problem_type is None:
                     if self.num_labels == 1:
                         self.config.problem_type = "regression"
                     else:
                         self.config.problem_type = "single_label_classification"
-
                 if self.config.problem_type == "regression":
                     loss_fct = nn.MSELoss()
-                    loss = loss_fct(logits.view(-1), labels_per_token.float())
+                    loss = loss_fct(logits.view(-1), labels.float().view(-1))
                 elif self.config.problem_type == "single_label_classification":
                     loss_fct = nn.CrossEntropyLoss()
-                    loss = loss_fct(
-                        logits.view(-1, self.num_labels), labels_per_token.view(-1)
-                    )
+                    loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
                 else:
                     loss_fct = nn.BCEWithLogitsLoss()
-                    loss = loss_fct(logits, labels_per_token.float())
-
+                    loss = loss_fct(logits, labels.float())
         else:
             # Default behavior: use the representation of the <s> token
             pooled_output = sequence_output[:, 0, :]  # Shape: (batch_size, hidden_size)

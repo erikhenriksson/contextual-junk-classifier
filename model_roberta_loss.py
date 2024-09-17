@@ -4,6 +4,27 @@ from transformers import XLMRobertaForSequenceClassification, XLMRobertaModel
 from transformers.modeling_outputs import SequenceClassifierOutput
 
 
+class FocalLoss(nn.Module):
+    def __init__(self, alpha=1, gamma=2, reduction="mean", weight=None):
+        super(FocalLoss, self).__init__()
+        self.alpha = alpha
+        self.gamma = gamma
+        self.reduction = reduction
+        self.weight = weight  # Class weights
+        self.ce_loss = nn.CrossEntropyLoss(reduction="none", weight=self.weight)
+
+    def forward(self, inputs, targets):
+        # inputs: (N, C)
+        # targets: (N)
+        ce_loss = self.ce_loss(inputs, targets)
+        pt = torch.exp(-ce_loss)
+        focal_loss = self.alpha * (1 - pt) ** self.gamma * ce_loss
+        if self.reduction == "mean":
+            return focal_loss.mean()
+        else:
+            return focal_loss.sum()
+
+
 class CustomClassificationHead(nn.Module):
     def __init__(self, config):
         super().__init__()
@@ -29,13 +50,16 @@ class CustomClassificationHead(nn.Module):
 class ContextualLossXLMRobertaForSequenceClassification(
     XLMRobertaForSequenceClassification
 ):
-    def __init__(self, config):
+    def __init__(self, config, alpha=1, gamma=2, class_weights=None):
         super().__init__(config)
         self.num_labels = config.num_labels
         self.config = config
 
         self.roberta = XLMRobertaModel(config, add_pooling_layer=False)
         self.classifier = CustomClassificationHead(config)
+
+        # Initialize Focal Loss
+        self.focal_loss = FocalLoss(alpha=alpha, gamma=gamma, weight=class_weights)
 
         # Initialize weights and apply final processing
         self.post_init()
@@ -130,21 +154,10 @@ class ContextualLossXLMRobertaForSequenceClassification(
 
             # Compute loss if labels are provided
             if labels is not None:
-                # Use existing loss computation logic
-                if self.config.problem_type is None:
-                    if self.num_labels == 1:
-                        self.config.problem_type = "regression"
-                    else:
-                        self.config.problem_type = "single_label_classification"
-                if self.config.problem_type == "regression":
-                    loss_fct = nn.MSELoss()
-                    loss = loss_fct(logits.view(-1), labels.float().view(-1))
-                elif self.config.problem_type == "single_label_classification":
-                    loss_fct = nn.CrossEntropyLoss()
-                    loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
-                else:
-                    loss_fct = nn.BCEWithLogitsLoss()
-                    loss = loss_fct(logits, labels.float())
+                # Use Focal Loss
+                loss = self.focal_loss(
+                    logits.view(-1, self.num_labels), labels.view(-1)
+                )
         else:
             # Default behavior: use the representation of the <s> token
             pooled_output = sequence_output[:, 0, :]  # Shape: (batch_size, hidden_size)
@@ -154,21 +167,10 @@ class ContextualLossXLMRobertaForSequenceClassification(
 
             # Compute loss
             if labels is not None:
-                if self.config.problem_type is None:
-                    if self.num_labels == 1:
-                        self.config.problem_type = "regression"
-                    else:
-                        self.config.problem_type = "single_label_classification"
-
-                if self.config.problem_type == "regression":
-                    loss_fct = nn.MSELoss()
-                    loss = loss_fct(logits.view(-1), labels.view(-1))
-                elif self.config.problem_type == "single_label_classification":
-                    loss_fct = nn.CrossEntropyLoss()
-                    loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
-                else:
-                    loss_fct = nn.BCEWithLogitsLoss()
-                    loss = loss_fct(logits, labels.float())
+                # Use Focal Loss
+                loss = self.focal_loss(
+                    logits.view(-1, self.num_labels), labels.view(-1)
+                )
 
         if not return_dict:
             output = (logits,) + outputs[2:]

@@ -27,7 +27,7 @@ def run(args):
     do_train = args.train == "yes"
     model_name = args.model_name
     if "roberta" in model_name:
-        model_cls = ContextualXLMRobertaForSequenceClassification
+        model_cls = ContextualLossXLMRobertaForSequenceClassification
         tokenizer = XLMRobertaTokenizer.from_pretrained(model_name)
     elif "deberta" in model_name:
         model_cls = ContextualDebertaV2ForSequenceClassification

@@ -219,19 +219,19 @@ def get_data(
         create_context_windows(
             data_test,
             base_label_idx,
-            window_size=1,
+            window_size=window_size,
         ),
         base_label_idx,
-        downsample_ratio,
+        1,
     )
     data_dev = downsample_class(
         create_context_windows(
             data_dev,
             base_label_idx,
-            window_size=1,
+            window_size=window_size,
         ),
         base_label_idx,
-        downsample_ratio,
+        1,
     )
     print("after downsampling")
     print(len(data_train), len(data_test), len(data_dev))

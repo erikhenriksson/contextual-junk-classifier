@@ -114,7 +114,9 @@ def downsample_class(data, class_label, downsample_ratio=0.3):
     return downsampled_class_data + other_class_data
 
 
-def get_data(file_path, source_type="jsonl", mode="binary", downsample_ratio=0.3):
+def get_data(
+    file_path, source_type="jsonl", mode="binary", downsample_ratio=0.3, window_size=1
+):
 
     func = read_jsonl_to_list if source_type == "jsonl" else read_json_to_list
     parsed_data = func(file_path, mode)
@@ -167,7 +169,41 @@ def get_data(file_path, source_type="jsonl", mode="binary", downsample_ratio=0.3
     print("Label distribution in dev split:", dev_distribution)
     print("Label distribution in test split:", test_distribution)
 
-    window_size = 1
+    # Check for data leakage: Ensure there are no overlapping documents or labels across the splits
+    def get_unique_documents(data_split):
+        return set([tuple(lines) for lines, _ in data_split])
+
+    # Get unique documents for each split
+    train_docs = get_unique_documents(data_train)
+    dev_docs = get_unique_documents(data_dev)
+    test_docs = get_unique_documents(data_test)
+
+    # Helper function to calculate overlap and percentage leakage
+    def calculate_leakage_percentage(split_a, split_b, name_a, name_b):
+        overlap = split_a.intersection(split_b)
+        overlap_count = len(overlap)
+        leakage_a = (overlap_count / len(split_a)) * 100 if len(split_a) > 0 else 0
+        leakage_b = (overlap_count / len(split_b)) * 100 if len(split_b) > 0 else 0
+        print(f"Overlap between {name_a} and {name_b}: {overlap_count} documents")
+        print(f"Leakage percentage for {name_a}: {leakage_a:.2f}%")
+        print(f"Leakage percentage for {name_b}: {leakage_b:.2f}%")
+        return overlap_count
+
+    # Calculate the extent of leakage between each split
+    leakage_train_dev = calculate_leakage_percentage(
+        train_docs, dev_docs, "Train", "Dev"
+    )
+    leakage_train_test = calculate_leakage_percentage(
+        train_docs, test_docs, "Train", "Test"
+    )
+    leakage_dev_test = calculate_leakage_percentage(dev_docs, test_docs, "Dev", "Test")
+
+    # If no overlap is found, there is no leakage
+    if leakage_train_dev == 0 and leakage_train_test == 0 and leakage_dev_test == 0:
+        print("No data leakage detected.")
+    else:
+        print("Data leakage detected. See above for details.")
+
     base_label_idx = unique_sorted_labels.index("clean")
 
     data_train = downsample_class(

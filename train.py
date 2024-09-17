@@ -26,11 +26,11 @@ def run(args):
     tokenizer = XLMRobertaTokenizer.from_pretrained(model_name)
 
     llm_train_data, llm_dev_data, llm_test_data, num_labels = get_data(
-        args.data_path, "jsonl", args.mode, 0.3
+        args.data_path, "jsonl", args.mode, 0.3, args.line_window
     )
 
     manual_train_data, manual_dev_data, manual_test_data, _ = get_data(
-        "eval.json", "json", args.mode, 1
+        "eval.json", "json", args.mode, 1, args.line_window
     )
 
     if args.data_source == "llm":
@@ -58,7 +58,7 @@ def run(args):
         )
     else:
         model = ContextualXLMRobertaForSequenceClassification.from_pretrained(
-            "./results2/checkpoint-2250"
+            f"./results_{args.data_source}/{args.load_checkpoint}",
         )
 
     data_collator = ContextualDataCollator(tokenizer)
@@ -113,7 +113,7 @@ def run(args):
         }
 
     training_args = TrainingArguments(
-        output_dir="./results2",
+        output_dir=f"./results_{args.data_source}",
         evaluation_strategy="steps",
         eval_steps=250,
         learning_rate=2e-5,

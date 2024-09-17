@@ -12,6 +12,8 @@ parser.add_argument("--mode", type=str, default="binary")
 parser.add_argument("--train", type=str, default="no")
 parser.add_argument("--data_source", type=str, default="llm")
 parser.add_argument("--model_name", type=str, default="xlm-roberta-base")
+parser.add_argument("--line_window", type=int, default=1)
+parser.add_argument("--load_checkpoint", type=str, default="checkpoint-1000")
 args = parser.parse_args()
 
 run(args)

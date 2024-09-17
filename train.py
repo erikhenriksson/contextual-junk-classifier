@@ -18,29 +18,39 @@ from transformers import (
 from model import ContextualXLMRobertaForSequenceClassification
 from data import ContextualDataCollator, ContextualTextDataset
 from preprocess import get_data
-from preprocess_eval import get_eval_data
 
 
-def run(data_path, mode, do_train):
-
-    model_name = "xlm-roberta-base"
+def run(args):
+    do_train = args.train == "yes"
+    model_name = args.model_name
     tokenizer = XLMRobertaTokenizer.from_pretrained(model_name)
 
-    # train_data, dev_data, test_data, num_labels = get_data(data_path, mode)
+    llm_train_data, llm_dev_data, llm_test_data, num_labels = get_data(
+        args.data_path, "jsonl", args.mode, 0.3
+    )
 
-    # eval_data = get_eval_data("eval.json", mode)
+    manual_train_data, manual_dev_data, manual_test_data, _ = get_data(
+        "eval.json", "json", args.mode, 1
+    )
 
-    _, _, eval_data, num_labels = get_data(data_path, mode)
-    train_data, dev_data, test_data, num_labels = get_eval_data("eval.json", mode, True)
+    if args.data_source == "llm":
+        print("Using LLM data to train, manual data to evaluate")
+        train_data = llm_train_data
+        dev_data = llm_dev_data
+        test_data = llm_test_data
+        eval_data = manual_train_data + manual_dev_data + manual_test_data
+    elif args.data_source == "manual":
+        print("Using manual data to train, LLM data to evaluate")
+        train_data = manual_train_data
+        dev_data = manual_dev_data
+        test_data = manual_test_data
+        eval_data = llm_test_data
 
     # Create datasets
     train_dataset = ContextualTextDataset(train_data, tokenizer)
     dev_dataset = ContextualTextDataset(dev_data, tokenizer)
     test_dataset = ContextualTextDataset(test_data, tokenizer)
     eval_dataset = ContextualTextDataset(eval_data, tokenizer)
-
-    print(train_dataset[0])
-    print(eval_dataset[0])
 
     if do_train:
         model = ContextualXLMRobertaForSequenceClassification.from_pretrained(
@@ -136,8 +146,8 @@ def run(data_path, mode, do_train):
 
     # Evaluate on the test set
     test_results = trainer.evaluate(eval_dataset=test_dataset)
-    print("Test Results:", test_results)
+    print("Test Results (self):", test_results)
 
-    # Evaluate on the test set
+    # Evaluate on the manual test set
     eval_results = trainer.evaluate(eval_dataset=eval_dataset)
-    print("Manual evaluation results:", eval_results)
+    print("Test results (other)", eval_results)

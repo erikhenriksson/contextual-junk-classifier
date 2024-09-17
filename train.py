@@ -17,6 +17,7 @@ from transformers import (
 )
 
 from model_roberta import ContextualXLMRobertaForSequenceClassification
+from model_roberta_loss import ContextualLossXLMRobertaForSequenceClassification
 from model_deberta import ContextualDebertaV2ForSequenceClassification
 from data import ContextualDataCollator, ContextualTextDataset
 from preprocess import get_data
@@ -26,7 +27,7 @@ def run(args):
     do_train = args.train == "yes"
     model_name = args.model_name
     if "roberta" in model_name:
-        model_cls = ContextualXLMRobertaForSequenceClassification
+        model_cls = ContextualLossXLMRobertaForSequenceClassification
         tokenizer = XLMRobertaTokenizer.from_pretrained(model_name)
     elif "deberta" in model_name:
         model_cls = ContextualDebertaV2ForSequenceClassification

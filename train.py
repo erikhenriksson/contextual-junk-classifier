@@ -34,7 +34,7 @@ def run(args):
         tokenizer = DebertaV2Tokenizer.from_pretrained(model_name)
 
     llm_train_data, llm_dev_data, llm_test_data, num_labels = get_data(
-        args.data_path, "jsonl", args.mode, 0.1, args.line_window
+        args.data_path, "jsonl", args.mode, 0.5, args.line_window
     )
 
     manual_train_data, manual_dev_data, manual_test_data, _ = get_data(

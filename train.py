@@ -32,7 +32,7 @@ def run(args):
     do_train = args.train == "yes"
     model_name = args.model_name
     model_type = args.model_type
-    model = None
+
     if "roberta" in model_name:
         tokenizer = XLMRobertaTokenizer.from_pretrained(model_name)
         if model_type == "normal":
@@ -52,7 +52,6 @@ def run(args):
     elif "snow" in model_name:
         tokenizer = AutoTokenizer.from_pretrained("Snowflake/snowflake-arctic-embed-m")
         base_model = AutoModel.from_pretrained("Snowflake/snowflake-arctic-embed-m")
-        model = ClassificationModel(base_model, num_labels)
 
     llm_train_data, llm_dev_data, llm_test_data, num_labels = get_data(
         args.data_path, "jsonl", args.mode, 0.25, args.line_window, "snow" in model_name
@@ -88,8 +87,8 @@ def run(args):
     if do_train:
         model = (
             model_cls.from_pretrained(model_name, num_labels=num_labels)
-            if not model
-            else model
+            if not "snow" in model_name
+            else ClassificationModel(base_model, num_labels=num_labels)
         )
     else:
         model = model_cls.from_pretrained(

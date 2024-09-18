@@ -196,7 +196,7 @@ def run(args):
         train_dataset=train_dataset,
         eval_dataset=dev_dataset,
         tokenizer=tokenizer,
-        data_collator=data_collator if not model_type == "normal" else None
+        data_collator=data_collator if not model_type == "normal" else None,
         compute_metrics=compute_metrics,
         callbacks=[EarlyStoppingCallback(early_stopping_patience=3)],
     )

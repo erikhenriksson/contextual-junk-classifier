@@ -11,6 +11,7 @@ os.environ["HF_HOME"] = ".hf/hf_home"
 from transformers import (
     XLMRobertaForSequenceClassification,
     DebertaV2ForSequenceClassification,
+    AutoModelForSequenceClassification,
     XLMRobertaTokenizer,
     DebertaV2Tokenizer,
     Trainer,
@@ -38,9 +39,9 @@ def run(args):
     model_name = args.model_name
     model_type = args.model_type
     embedding_model = "snow" in args.model_name
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
 
     if "roberta" in model_name:
-        tokenizer = XLMRobertaTokenizer.from_pretrained(model_name)
         if model_type == "normal":
             model_cls = XLMRobertaForSequenceClassification
         elif model_type == "contextual-pooling":
@@ -49,16 +50,13 @@ def run(args):
             model_cls = ContextualLossXLMRobertaForSequenceClassification
 
     elif "deberta" in model_name:
-        tokenizer = DebertaV2Tokenizer.from_pretrained(model_name)
         if model_type == "normal":
             model_cls = DebertaV2ForSequenceClassification
         elif model_type == "contextual-pooling":
             model_cls = ContextualDebertaV2ForSequenceClassification
 
     elif "snow" in model_name:
-        tokenizer = AutoTokenizer.from_pretrained(model_name)
-        base_model = AutoModel.from_pretrained(model_name)
-        config = AutoConfig.from_pretrained(model_name)
+        model_cls = AutoModelForSequenceClassification
 
     llm_train_data, llm_dev_data, llm_test_data, num_labels = get_data(
         args.data_path, "jsonl", args.mode, 0.25, args.line_window, embedding_model
@@ -99,8 +97,8 @@ def run(args):
     if do_train:
         model = (
             model_cls.from_pretrained(model_name, num_labels=num_labels)
-            if not "snow" in model_name
-            else ClassificationModel(config, base_model, num_labels=num_labels)
+            # if not "snow" in model_name
+            # else ClassificationModel(config, base_model, num_labels=num_labels)
         )
     else:
         model = model_cls.from_pretrained(

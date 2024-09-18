@@ -86,10 +86,17 @@ class ContextualXLMRobertaForSequenceClassification(
             # Mask the sequence output
             target_hidden_states = sequence_output * target_mask_expanded
 
-            # Perform pooling over target tokens
-            sum_hidden = torch.sum(target_hidden_states, dim=1)
-            count_nonzero = target_mask.sum(dim=1).unsqueeze(-1).clamp(min=1e-9).float()
-            pooled_output = sum_hidden / count_nonzero
+            # Perform max pooling over target tokens
+            # Create a mask for target tokens
+            target_mask_expanded = target_mask.unsqueeze(-1).expand(
+                sequence_output.size()
+            )
+            # Replace non-target tokens with a very small value (e.g., -inf) so they don't affect the max operation
+            masked_sequence_output = sequence_output.masked_fill(
+                ~target_mask_expanded.bool(), float("-inf")
+            )
+            # Perform max pooling over the sequence length dimension
+            pooled_output, _ = torch.max(masked_sequence_output, dim=1)
         else:
             # Default behavior: use the representation of the <s> token
             pooled_output = sequence_output[:, 0, :]  # Shape: (batch_size, hidden_size)

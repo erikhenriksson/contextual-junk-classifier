@@ -97,7 +97,7 @@ def create_context_windows(docs, base_label_idx, window_size=1, embedding_model=
                     "context_right": "\n".join(text[i + 1 : end]),
                     "label": this_label,
                 }
-                if embedding_model
+                if not embedding_model
                 else {"text": text[i], "label": this_label}
             )
             context_windows.append(window)

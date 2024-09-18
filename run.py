@@ -1,3 +1,4 @@
+import json
 from train import run
 import argparse
 
@@ -17,6 +18,7 @@ parser.add_argument("--line_window", type=int, default=1)
 parser.add_argument("--load_checkpoint", type=str, default="checkpoint-1000")
 args = parser.parse_args()
 
-print(parser.dump(args))
+# Print the arguments in JSON format
+print(json.dumps(vars(args), indent=4))
 
 run(args)

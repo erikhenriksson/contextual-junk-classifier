@@ -140,10 +140,9 @@ class ContextualDataCollator:
         return batch
 
 
-def create_dataset_with_query_prefix(source_data, tokenizer):
-
+def _create_dataset(source_data, tokenizer, prefix=""):
     data = {
-        "text": [f"{x['text']}" for x in source_data],
+        "text": [f"{prefix}{x['text']}" for x in source_data],
         "label": [x["label"] for x in source_data],
     }
 
@@ -167,3 +166,18 @@ def create_dataset_with_query_prefix(source_data, tokenizer):
     )
 
     return tokenized_dataset
+
+
+def create_basic_dataset_with_query_prefix(source_data, tokenizer):
+    return _create_dataset(
+        source_data,
+        tokenizer,
+        "Represent this sentence for searching relevant passages: ",
+    )
+
+
+def create_basic_dataset(source_data, tokenizer):
+    return _create_dataset(
+        source_data,
+        tokenizer,
+    )

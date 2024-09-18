@@ -29,7 +29,8 @@ from model_classifier import ClassificationModel
 from data import (
     ContextualDataCollator,
     ContextualTextDataset,
-    create_dataset_with_query_prefix,
+    create_basic_dataset_with_query_prefix,
+    create_basic_dataset,
 )
 from preprocess import get_data
 
@@ -83,9 +84,12 @@ def run(args):
 
     # Create datasets
     if not embedding_model:
-        data_method = ContextualTextDataset
+        if model_type == "normal":
+            data_method = create_basic_dataset
+        else:
+            data_method = ContextualTextDataset
     else:
-        data_method = create_dataset_with_query_prefix
+        data_method = create_basic_dataset_with_query_prefix
 
     train_dataset = data_method(train_data, tokenizer)
     dev_dataset = data_method(dev_data, tokenizer)

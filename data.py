@@ -143,10 +143,7 @@ class ContextualDataCollator:
 def create_dataset_with_query_prefix(source_data, tokenizer):
 
     data = {
-        "text": [
-            f"Represent this sentence for searching relevant passages: : {x['text']}"
-            for x in source_data
-        ],
+        "text": [f"{x['text']}" for x in source_data],
         "label": [x["label"] for x in source_data],
     }
 

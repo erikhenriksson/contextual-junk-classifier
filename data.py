@@ -1,4 +1,5 @@
 from torch.utils.data import Dataset
+from datasets import Dataset as HFDataset
 import torch
 
 
@@ -149,9 +150,7 @@ def create_dataset_with_query_prefix(source_data, tokenizer):
         "label": [x["label"] for x in source_data],
     }
 
-    # Create a pandas DataFrame or a list of dictionaries
-    # data = {'text': texts, 'label': labels}
-    dataset = Dataset.from_dict(data)
+    dataset = HFDataset.from_dict(data)
 
     # Tokenization function
     def tokenize_function(examples):

@@ -137,3 +137,35 @@ class ContextualDataCollator:
         batch["labels"] = torch.tensor(labels, dtype=torch.long)
 
         return batch
+
+
+def create_dataset_with_query_prefix(source_data, tokenizer):
+
+    data = {
+        "text": [
+            f"Represent this sentence for searching relevant passages: : {x['text']}"
+            for x in source_data
+        ],
+        "label": [x["label"] for x in source_data],
+    }
+
+    # Create a pandas DataFrame or a list of dictionaries
+    # data = {'text': texts, 'label': labels}
+    dataset = Dataset.from_dict(data)
+
+    # Tokenization function
+    def tokenize_function(examples):
+        return tokenizer(
+            examples["text"],
+            truncation=True,
+            padding="max_length",
+            max_length=512,
+        )
+
+    # Apply the tokenization
+    tokenized_dataset = dataset.map(tokenize_function, batched=True)
+
+    # Set the format for PyTorch
+    tokenized_dataset.set_format(
+        type="torch", columns=["input_ids", "attention_mask", "label"]
+    )

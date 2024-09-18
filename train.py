@@ -18,13 +18,18 @@ from transformers import (
     EarlyStoppingCallback,
     AutoTokenizer,
     AutoModel,
+    AutoConfig,
 )
 
 from model_roberta import ContextualXLMRobertaForSequenceClassification
 from model_roberta_loss import ContextualLossXLMRobertaForSequenceClassification
 from model_deberta import ContextualDebertaV2ForSequenceClassification
 from model_classifier import ClassificationModel
-from data import ContextualDataCollator, ContextualTextDataset
+from data import (
+    ContextualDataCollator,
+    ContextualTextDataset,
+    create_dataset_with_query_prefix,
+)
 from preprocess import get_data
 
 
@@ -32,6 +37,7 @@ def run(args):
     do_train = args.train == "yes"
     model_name = args.model_name
     model_type = args.model_type
+    embedding_model = "snow" in args.model_name
 
     if "roberta" in model_name:
         tokenizer = XLMRobertaTokenizer.from_pretrained(model_name)
@@ -50,15 +56,16 @@ def run(args):
             model_cls = ContextualDebertaV2ForSequenceClassification
 
     elif "snow" in model_name:
-        tokenizer = AutoTokenizer.from_pretrained("Snowflake/snowflake-arctic-embed-m")
-        base_model = AutoModel.from_pretrained("Snowflake/snowflake-arctic-embed-m")
+        tokenizer = AutoTokenizer.from_pretrained(model_name)
+        base_model = AutoModel.from_pretrained(model_name)
+        config = AutoConfig.from_pretrained(model_name)
 
     llm_train_data, llm_dev_data, llm_test_data, num_labels = get_data(
-        args.data_path, "jsonl", args.mode, 0.25, args.line_window, "snow" in model_name
+        args.data_path, "jsonl", args.mode, 0.25, args.line_window, embedding_model
     )
 
     manual_train_data, manual_dev_data, manual_test_data, _ = get_data(
-        "eval.json", "json", args.mode, 1, args.line_window
+        "eval.json", "json", args.mode, 1, args.line_window, embedding_model
     )
 
     if args.data_source == "llm":
@@ -77,18 +84,24 @@ def run(args):
     print("Example train data:", train_data[0])
 
     # Create datasets
-    train_dataset = ContextualTextDataset(train_data, tokenizer)
-    dev_dataset = ContextualTextDataset(dev_data, tokenizer)
-    test_dataset = ContextualTextDataset(test_data, tokenizer)
-    eval_dataset = ContextualTextDataset(eval_data, tokenizer)
+    if not embedding_model:
+        data_method = ContextualTextDataset
+    else:
+        data_method = create_dataset_with_query_prefix
+
+    train_dataset = data_method(train_data, tokenizer)
+    dev_dataset = data_method(dev_data, tokenizer)
+    test_dataset = data_method(test_data, tokenizer)
+    eval_dataset = data_method(eval_data, tokenizer)
 
     print("Tokenized:", train_dataset[0])
+    exit()
 
     if do_train:
         model = (
             model_cls.from_pretrained(model_name, num_labels=num_labels)
             if not "snow" in model_name
-            else ClassificationModel(base_model, num_labels=num_labels)
+            else ClassificationModel(config, base_model, num_labels=num_labels)
         )
     else:
         model = model_cls.from_pretrained(
@@ -172,7 +185,7 @@ def run(args):
         train_dataset=train_dataset,
         eval_dataset=dev_dataset,
         tokenizer=tokenizer,
-        data_collator=data_collator,
+        data_collator=data_collator if not embedding_model else None,
         compute_metrics=compute_metrics,
         callbacks=[EarlyStoppingCallback(early_stopping_patience=3)],
     )

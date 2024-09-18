@@ -73,7 +73,7 @@ def encode_labels(parsed_data, unique_labels):
     return updated_data
 
 
-def create_context_windows(docs, base_label_idx, window_size=1):
+def create_context_windows(docs, base_label_idx, window_size=1, embedding_model=False):
     windowed_docs = []
     for doc in docs:
 
@@ -90,12 +90,16 @@ def create_context_windows(docs, base_label_idx, window_size=1):
             except:
                 print("Warning: label not found, using 'clean' as default")
                 this_label = base_label_idx
-            window = {
-                "context_left": "\n".join(text[start:i]),
-                "target_text": text[i],
-                "context_right": "\n".join(text[i + 1 : end]),
-                "label": this_label,
-            }
+            window = (
+                {
+                    "context_left": "\n".join(text[start:i]),
+                    "target_text": text[i],
+                    "context_right": "\n".join(text[i + 1 : end]),
+                    "label": this_label,
+                }
+                if embedding_model
+                else {"text": text[i], "label": this_label}
+            )
             context_windows.append(window)
         windowed_docs += context_windows
     print(len(windowed_docs))
@@ -216,6 +220,7 @@ def get_data(
             data_train,
             base_label_idx,
             window_size=window_size,
+            embedding_model=embedding_model,
         ),
         base_label_idx,
         downsample_ratio,
@@ -225,6 +230,7 @@ def get_data(
             data_test,
             base_label_idx,
             window_size=window_size,
+            embedding_model=embedding_model,
         ),
         base_label_idx,
         downsample_ratio,
@@ -234,6 +240,7 @@ def get_data(
             data_dev,
             base_label_idx,
             window_size=window_size,
+            embedding_model=embedding_model,
         ),
         base_label_idx,
         downsample_ratio,

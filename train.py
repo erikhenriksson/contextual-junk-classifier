@@ -95,7 +95,6 @@ def run(args):
     eval_dataset = data_method(eval_data, tokenizer)
 
     print("Tokenized:", train_dataset[0])
-    exit()
 
     if do_train:
         model = (

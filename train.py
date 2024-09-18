@@ -95,11 +95,14 @@ def run(args):
     print("Tokenized:", train_dataset[0])
 
     if do_train:
-        model = (
-            model_cls.from_pretrained(model_name, num_labels=num_labels)
-            # if not "snow" in model_name
-            # else ClassificationModel(config, base_model, num_labels=num_labels)
-        )
+        model = model_cls.from_pretrained(model_name, num_labels=num_labels)
+
+        if embedding_model:
+            # Freeze all the layers except the classification head
+            for param in model.base_model.embeddings.parameters():
+                param.requires_grad = False
+            for param in model.base_model.encoder.parameters():
+                param.requires_grad = False
     else:
         model = model_cls.from_pretrained(
             f"./results_{args.data_source}/{args.load_checkpoint}",

@@ -9,6 +9,8 @@ from sklearn.metrics import (
 os.environ["HF_HOME"] = ".hf/hf_home"
 
 from transformers import (
+    XLMRobertaForSequenceClassification,
+    DebertaV2ForSequenceClassification,
     XLMRobertaTokenizer,
     DebertaV2Tokenizer,
     Trainer,
@@ -26,12 +28,22 @@ from preprocess import get_data
 def run(args):
     do_train = args.train == "yes"
     model_name = args.model_name
+    model_type = args.model_type
     if "roberta" in model_name:
-        model_cls = ContextualXLMRobertaForSequenceClassification
         tokenizer = XLMRobertaTokenizer.from_pretrained(model_name)
+        if model_type == "normal":
+            model_cls = XLMRobertaForSequenceClassification
+        elif model_type == "contextual-pooling":
+            model_cls = ContextualXLMRobertaForSequenceClassification
+        elif model_type == "contextual-loss":
+            model_cls = ContextualXLMRobertaForSequenceClassification
+
     elif "deberta" in model_name:
-        model_cls = ContextualDebertaV2ForSequenceClassification
         tokenizer = DebertaV2Tokenizer.from_pretrained(model_name)
+        if model_type == "normal":
+            model_cls = DebertaV2ForSequenceClassification
+        elif model_type == "contextual-pooling":
+            model_cls = ContextualDebertaV2ForSequenceClassification
 
     llm_train_data, llm_dev_data, llm_test_data, num_labels = get_data(
         args.data_path, "jsonl", args.mode, 0.25, args.line_window

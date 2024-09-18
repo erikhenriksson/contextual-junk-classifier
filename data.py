@@ -168,3 +168,5 @@ def create_dataset_with_query_prefix(source_data, tokenizer):
     tokenized_dataset.set_format(
         type="torch", columns=["input_ids", "attention_mask", "label"]
     )
+
+    return tokenized_dataset

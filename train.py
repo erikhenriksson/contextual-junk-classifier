@@ -16,11 +16,14 @@ from transformers import (
     Trainer,
     TrainingArguments,
     EarlyStoppingCallback,
+    AutoTokenizer,
+    AutoModel,
 )
 
 from model_roberta import ContextualXLMRobertaForSequenceClassification
 from model_roberta_loss import ContextualLossXLMRobertaForSequenceClassification
 from model_deberta import ContextualDebertaV2ForSequenceClassification
+from model_classifier import ClassificationModel
 from data import ContextualDataCollator, ContextualTextDataset
 from preprocess import get_data
 
@@ -36,7 +39,7 @@ def run(args):
         elif model_type == "contextual-pooling":
             model_cls = ContextualXLMRobertaForSequenceClassification
         elif model_type == "contextual-loss":
-            model_cls = ContextualXLMRobertaForSequenceClassification
+            model_cls = ContextualLossXLMRobertaForSequenceClassification
 
     elif "deberta" in model_name:
         tokenizer = DebertaV2Tokenizer.from_pretrained(model_name)
@@ -44,6 +47,11 @@ def run(args):
             model_cls = DebertaV2ForSequenceClassification
         elif model_type == "contextual-pooling":
             model_cls = ContextualDebertaV2ForSequenceClassification
+
+    elif "snow" in model_name:
+        tokenizer = AutoTokenizer.from_pretrained("Snowflake/snowflake-arctic-embed-m")
+        base_model = AutoModel.from_pretrained("Snowflake/snowflake-arctic-embed-m")
+        model = ClassificationModel(base_model)
 
     llm_train_data, llm_dev_data, llm_test_data, num_labels = get_data(
         args.data_path, "jsonl", args.mode, 0.25, args.line_window

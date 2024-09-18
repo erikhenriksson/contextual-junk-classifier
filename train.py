@@ -60,11 +60,16 @@ def run(args):
         model_cls = AutoModelForSequenceClassification
 
     llm_train_data, llm_dev_data, llm_test_data, num_labels = get_data(
-        args.data_path, "jsonl", args.mode, 0.25, args.line_window, embedding_model
+        args.data_path,
+        "jsonl",
+        args.mode,
+        0.25,
+        args.line_window,
+        model_type == "normal",
     )
 
     manual_train_data, manual_dev_data, manual_test_data, _ = get_data(
-        "eval.json", "json", args.mode, 1, args.line_window, embedding_model
+        "eval.json", "json", args.mode, 1, args.line_window, model_type == "normal"
     )
 
     if args.data_source == "llm":

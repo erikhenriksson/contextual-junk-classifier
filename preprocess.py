@@ -115,7 +115,12 @@ def downsample_class(data, class_label, downsample_ratio=0.3):
 
 
 def get_data(
-    file_path, source_type="jsonl", mode="binary", downsample_ratio=0.3, window_size=1
+    file_path,
+    source_type="jsonl",
+    mode="binary",
+    downsample_ratio=0.3,
+    window_size=1,
+    embedding_model=False,
 ):
 
     func = read_jsonl_to_list if source_type == "jsonl" else read_json_to_list

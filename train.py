@@ -176,7 +176,7 @@ def run(args):
         output_dir=f"./results_{args.data_source}",
         evaluation_strategy="steps",
         eval_steps=250,
-        learning_rate=3e-5,
+        learning_rate=1e-5,
         per_device_train_batch_size=8,
         per_device_eval_batch_size=8,
         num_train_epochs=5,

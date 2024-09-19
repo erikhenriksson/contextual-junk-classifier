@@ -10,22 +10,19 @@ os.environ["HF_HOME"] = ".hf/hf_home"
 
 from transformers import (
     XLMRobertaForSequenceClassification,
+    XLMRobertaForTokenClassification,
     DebertaV2ForSequenceClassification,
     AutoModelForSequenceClassification,
-    XLMRobertaTokenizer,
-    DebertaV2Tokenizer,
     Trainer,
     TrainingArguments,
     EarlyStoppingCallback,
     AutoTokenizer,
-    AutoModel,
-    AutoConfig,
 )
 
 from model_roberta import ContextualXLMRobertaForSequenceClassification
 from model_roberta_loss import ContextualLossXLMRobertaForSequenceClassification
 from model_deberta import ContextualDebertaV2ForSequenceClassification
-from model_classifier import ClassificationModel
+from model_token_roberta import CustomXLMRobertaClassifier
 from data import (
     ContextualDataCollator,
     ContextualTextDataset,
@@ -42,6 +39,7 @@ def run(args):
     embedding_model = "snow" in args.model_name
     if embedding_model:
         model_type == "normal"
+
     tokenizer = AutoTokenizer.from_pretrained(model_name)
 
     if "roberta" in model_name:
@@ -51,6 +49,10 @@ def run(args):
             model_cls = ContextualXLMRobertaForSequenceClassification
         elif model_type == "contextual-loss":
             model_cls = ContextualLossXLMRobertaForSequenceClassification
+        elif model_type == "contextual-tokens":
+            model_cls = CustomXLMRobertaClassifier
+        elif model_type == "tokens-normal":
+            model_cls = XLMRobertaForTokenClassification
 
     elif "deberta" in model_name:
         if model_type == "normal":

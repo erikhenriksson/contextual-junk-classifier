@@ -5,6 +5,7 @@ import torch.optim as optim
 from sklearn.model_selection import train_test_split
 import hierarchical_preprocess
 
+
 # Define a combined model
 class DocumentClassifier(nn.Module):
     def __init__(self, num_labels):
@@ -13,7 +14,7 @@ class DocumentClassifier(nn.Module):
         encoder_layer = nn.TransformerEncoderLayer(d_model=768, nhead=8)
         self.transformer_encoder = nn.TransformerEncoder(encoder_layer, num_layers=6)
         self.linear = nn.Linear(768, num_labels)
-        self.batch_size = 16
+        self.batch_size = 4
         self.tokenizer = XLMRobertaTokenizer.from_pretrained("xlm-roberta-base")
 
     def tokenize_lines(self, lines):
@@ -21,7 +22,9 @@ class DocumentClassifier(nn.Module):
         encoded_inputs = self.tokenizer(
             lines, return_tensors="pt", padding=True, truncation=True
         )
-        return encoded_inputs.to(self.line_model.device)  # Ensure they are moved to the same device
+        return encoded_inputs.to(
+            self.line_model.device
+        )  # Ensure they are moved to the same device
 
     def extract_line_embeddings(self, encoded_inputs):
         all_embeddings = []
@@ -54,7 +57,9 @@ class DocumentClassifier(nn.Module):
         embeddings = embeddings.unsqueeze(0)  # Shape: [1, num_lines, 768]
 
         # Pass through Transformer Encoder
-        encoded_output = self.transformer_encoder(embeddings)  # Shape: [1, num_lines, 768]
+        encoded_output = self.transformer_encoder(
+            embeddings
+        )  # Shape: [1, num_lines, 768]
 
         # Apply linear classification layer
         logits = self.linear(encoded_output)  # Shape: [1, num_lines, num_labels]
@@ -79,10 +84,16 @@ print(f"Number of documents: {len(documents)}")
 num_labels = len(label_to_index)
 
 # Split data into train, test, and validation sets (70% train, 20% test, 10% validation)
-train_docs, temp_docs, train_labels, temp_labels = train_test_split(documents, labels, test_size=0.3, random_state=42)
-val_docs, test_docs, val_labels, test_labels = train_test_split(temp_docs, temp_labels, test_size=0.666, random_state=42)
+train_docs, temp_docs, train_labels, temp_labels = train_test_split(
+    documents, labels, test_size=0.3, random_state=42
+)
+val_docs, test_docs, val_labels, test_labels = train_test_split(
+    temp_docs, temp_labels, test_size=0.666, random_state=42
+)
 
-print(f"Train size: {len(train_docs)}, Val size: {len(val_docs)}, Test size: {len(test_docs)}")
+print(
+    f"Train size: {len(train_docs)}, Val size: {len(val_docs)}, Test size: {len(test_docs)}"
+)
 
 # Instantiate the model
 model = DocumentClassifier(num_labels)
@@ -113,7 +124,9 @@ def evaluate_model(documents, labels, model, loss_fn):
             total_loss += loss.item()
 
             # Compute accuracy
-            predicted_labels = torch.argmax(logits, dim=-1).view(-1)  # Predicted class indices
+            predicted_labels = torch.argmax(logits, dim=-1).view(
+                -1
+            )  # Predicted class indices
             correct += (predicted_labels == label.view(-1)).sum().item()
             total += label.numel()
 
@@ -123,7 +136,9 @@ def evaluate_model(documents, labels, model, loss_fn):
 
 
 # Example training loop with validation
-def train_model(train_docs, train_labels, val_docs, val_labels, model, optimizer, loss_fn, epochs=5):
+def train_model(
+    train_docs, train_labels, val_docs, val_labels, model, optimizer, loss_fn, epochs=5
+):
     for epoch in range(epochs):
         model.train()  # Set the model to training mode
         total_loss = 0
@@ -149,7 +164,9 @@ def train_model(train_docs, train_labels, val_docs, val_labels, model, optimizer
         # Evaluate on validation set after each epoch
         val_loss, val_accuracy = evaluate_model(val_docs, val_labels, model, loss_fn)
 
-        print(f"Epoch {epoch + 1}/{epochs}, Train Loss: {total_loss / len(train_docs)}, Val Loss: {val_loss}, Val Accuracy: {val_accuracy}")
+        print(
+            f"Epoch {epoch + 1}/{epochs}, Train Loss: {total_loss / len(train_docs)}, Val Loss: {val_loss}, Val Accuracy: {val_accuracy}"
+        )
 
 
 # Train the model and evaluate on validation set

@@ -44,8 +44,10 @@ class DocumentClassifier(nn.Module):
                 :, 0, :
             ]  # [CLS] token embeddings
             all_embeddings.append(pooled_embeddings)
+        embeddings = torch.cat(all_embeddings, dim=0)  # Concatenate embeddings
         del input_ids, attention_mask, all_embeddings, encoded_inputs  # Free memory
-        return torch.cat(all_embeddings, dim=0)  # Shape: [num_lines, 768]
+        torch.cuda.empty_cache()
+        return embeddings
 
     def forward(self, document_lines):
         # Tokenize document lines in one go (handles padding within the batch)

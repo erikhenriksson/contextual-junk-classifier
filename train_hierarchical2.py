@@ -42,7 +42,7 @@ class DocumentClassifier(nn.Module):
             )
             pooled_embeddings = outputs.last_hidden_state[
                 :, 0, :
-            ].detach()  # [CLS] token embeddings
+            ]  # [CLS] token embeddings
             all_embeddings.append(pooled_embeddings)
 
         return torch.cat(all_embeddings, dim=0)  # Shape: [num_lines, 768]

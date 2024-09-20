@@ -37,15 +37,25 @@ class DocumentClassifier(nn.Module):
             batch_input_ids = input_ids[i : i + self.batch_size]
             batch_attention_mask = attention_mask[i : i + self.batch_size]
 
+            # Clear previous embeddings from GPU if not needed
+            torch.cuda.empty_cache()
+
             outputs = self.line_model(
                 input_ids=batch_input_ids, attention_mask=batch_attention_mask
             )
             pooled_embeddings = outputs.last_hidden_state[
                 :, 0, :
             ]  # [CLS] token embeddings
+
+            # Explicitly move embeddings to CPU if necessary
+            pooled_embeddings = (
+                pooled_embeddings.detach().cpu()
+            )  # This ensures the tensors are detached and on CPU
+
             all_embeddings.append(pooled_embeddings)
 
-        return torch.cat(all_embeddings, dim=0)  # Shape: [num_lines, 768]
+        # If using GPU, convert back before returning
+        return torch.cat(all_embeddings, dim=0).to(device)  # Shape: [num_lines, 768]
 
     def forward(self, document_lines):
         # Tokenize document lines in one go (handles padding within the batch)

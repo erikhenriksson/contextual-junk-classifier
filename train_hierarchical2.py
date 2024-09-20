@@ -15,7 +15,7 @@ class DocumentClassifier(nn.Module):
         encoder_layer = nn.TransformerEncoderLayer(d_model=768, nhead=8)
         self.transformer_encoder = nn.TransformerEncoder(encoder_layer, num_layers=6)
         self.linear = nn.Linear(768, num_labels)
-        self.batch_size = 4
+        self.batch_size = 2
         self.tokenizer = XLMRobertaTokenizer.from_pretrained("xlm-roberta-base")
 
     def tokenize_lines(self, lines):
@@ -44,10 +44,8 @@ class DocumentClassifier(nn.Module):
                 :, 0, :
             ]  # [CLS] token embeddings
             all_embeddings.append(pooled_embeddings)
-        embeddings = torch.cat(all_embeddings, dim=0)  # Concatenate embeddings
-        del input_ids, attention_mask, all_embeddings, encoded_inputs  # Free memory
-        torch.cuda.empty_cache()
-        return embeddings
+
+        return torch.cat(all_embeddings, dim=0)  # Shape: [num_lines, 768]
 
     def forward(self, document_lines):
         # Tokenize document lines in one go (handles padding within the batch)
@@ -168,9 +166,7 @@ def train_model(
                 optimizer.step()
 
                 total_loss += loss.item()
-                # Free memory between iterations
-                del logits, label, loss
-                torch.cuda.empty_cache()
+
                 # Update progress bar
                 pbar.set_postfix(
                     {"Loss": total_loss / (pbar.n + 1)}

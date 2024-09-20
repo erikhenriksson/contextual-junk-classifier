@@ -15,7 +15,7 @@ class DocumentClassifier(nn.Module):
         encoder_layer = nn.TransformerEncoderLayer(d_model=768, nhead=8)
         self.transformer_encoder = nn.TransformerEncoder(encoder_layer, num_layers=6)
         self.linear = nn.Linear(768, num_labels)
-        self.batch_size = 8
+        self.batch_size = 16
 
     def extract_line_embeddings(self, encoded_inputs):
         all_embeddings = []
@@ -150,7 +150,7 @@ def train_model(
 
                 optimizer.zero_grad()  # Reset gradients
                 tokens = tokenize_lines(document)
-                print(tokens["input_ids"].shape)
+                # print(tokens["input_ids"].shape)
                 # Forward pass
                 logits = model(tokens)
 

@@ -172,7 +172,7 @@ def train_model(
                     {"Loss": total_loss / (pbar.n + 1)}
                 )  # Update the loss display
                 pbar.update(1)  # Increment the progress bar
-                print(torch.cuda.memory_summary())
+                # print(torch.cuda.memory_summary())
 
         # Evaluate on validation set after each epoch
         val_loss, val_accuracy = evaluate_model(val_docs, val_labels, model, loss_fn)

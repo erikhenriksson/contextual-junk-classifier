@@ -15,7 +15,7 @@ class DocumentClassifier(nn.Module):
         encoder_layer = nn.TransformerEncoderLayer(d_model=768, nhead=8)
         self.transformer_encoder = nn.TransformerEncoder(encoder_layer, num_layers=6)
         self.linear = nn.Linear(768, num_labels)
-        self.batch_size = 1
+        self.batch_size = 8
 
     def extract_line_embeddings(self, encoded_inputs):
         all_embeddings = []

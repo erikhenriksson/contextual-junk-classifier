@@ -146,6 +146,8 @@ def train_model(
         for document, label in zip(train_docs, train_labels):
             optimizer.zero_grad()  # Reset gradients
 
+            print(document.shape)
+
             # Forward pass
             logits = model(document)  # Shape: [1, num_lines, num_labels]
 

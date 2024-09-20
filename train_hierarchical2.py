@@ -16,6 +16,16 @@ class DocumentClassifier(nn.Module):
         self.transformer_encoder = nn.TransformerEncoder(encoder_layer, num_layers=6)
         self.linear = nn.Linear(768, num_labels)
         self.batch_size = 16
+        self.tokenizer = XLMRobertaTokenizer.from_pretrained("xlm-roberta-base")
+
+    def tokenize_lines(self, lines):
+        # Tokenize all lines in one go, padding them to the same length
+        encoded_inputs = self.tokenizer(
+            lines, return_tensors="pt", padding=True, truncation=True, max_length=128
+        )
+        return encoded_inputs.to(
+            self.line_model.device
+        )  # Ensure they are moved to the same device
 
     def extract_line_embeddings(self, encoded_inputs):
         all_embeddings = []
@@ -39,7 +49,7 @@ class DocumentClassifier(nn.Module):
 
     def forward(self, document_lines):
         # Tokenize document lines in one go (handles padding within the batch)
-        encoded_inputs = document_lines
+        encoded_inputs = self.tokenize_lines(document_lines)
 
         # Extract embeddings from XLM-Roberta in batches
         embeddings = self.extract_line_embeddings(encoded_inputs)
@@ -97,8 +107,6 @@ model.to(device)
 optimizer = optim.Adam(model.parameters(), lr=1e-5)
 loss_fn = nn.CrossEntropyLoss()  # Cross-entropy loss for multi-class classification
 
-tokenizer = XLMRobertaTokenizer.from_pretrained("xlm-roberta-base")
-
 
 # Function to evaluate model on a given dataset
 def evaluate_model(documents, labels, model, loss_fn):
@@ -128,14 +136,6 @@ def evaluate_model(documents, labels, model, loss_fn):
     return avg_loss, accuracy
 
 
-def tokenize_lines(lines):
-    # Tokenize all lines in one go, padding them to the same length
-    encoded_inputs = tokenizer(
-        lines, return_tensors="pt", padding=True, truncation=True, max_length=128
-    )
-    return encoded_inputs.to(device)
-
-
 # Example training loop with validation and progress bar
 def train_model(
     train_docs, train_labels, val_docs, val_labels, model, optimizer, loss_fn, epochs=5
@@ -147,12 +147,10 @@ def train_model(
         # Create a progress bar for the training loop
         with tqdm(total=len(train_docs), desc=f"Epoch {epoch + 1}/{epochs}") as pbar:
             for document, label in zip(train_docs, train_labels):
-
                 optimizer.zero_grad()  # Reset gradients
-                tokens = tokenize_lines(document)
-                # print(tokens["input_ids"].shape)
+
                 # Forward pass
-                logits = model(tokens)
+                logits = model(document)  # Shape: [1, num_lines, num_labels]
 
                 # Assuming `label` is shape [num_lines] with class indices for each line
                 label = (
@@ -174,7 +172,7 @@ def train_model(
                     {"Loss": total_loss / (pbar.n + 1)}
                 )  # Update the loss display
                 pbar.update(1)  # Increment the progress bar
-                # print(torch.cuda.memory_summary())
+                print(torch.cuda.memory_summary())
 
         # Evaluate on validation set after each epoch
         val_loss, val_accuracy = evaluate_model(val_docs, val_labels, model, loss_fn)

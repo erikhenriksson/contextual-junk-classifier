@@ -168,7 +168,9 @@ def train_model(
                 optimizer.step()
 
                 total_loss += loss.item()
-
+                # Free memory between iterations
+                del logits, label, loss
+                torch.cuda.empty_cache()
                 # Update progress bar
                 pbar.set_postfix(
                     {"Loss": total_loss / (pbar.n + 1)}

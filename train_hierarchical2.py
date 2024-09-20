@@ -15,7 +15,7 @@ class DocumentClassifier(nn.Module):
         encoder_layer = nn.TransformerEncoderLayer(d_model=768, nhead=8)
         self.transformer_encoder = nn.TransformerEncoder(encoder_layer, num_layers=6)
         self.linear = nn.Linear(768, num_labels)
-        self.batch_size = 2
+        self.batch_size = 4
         self.tokenizer = XLMRobertaTokenizer.from_pretrained("xlm-roberta-base")
 
     def tokenize_lines(self, lines):
@@ -117,6 +117,8 @@ def evaluate_model(documents, labels, model, loss_fn):
 
     with torch.no_grad():  # Disable gradient calculation
         for document, label in zip(documents, labels):
+            document = document[:5]
+            label = label[:5]
             logits = model(document)
             label = torch.tensor(label).to(device).unsqueeze(0)  # Shape: [1, num_lines]
 

@@ -15,7 +15,7 @@ class DocumentClassifier(nn.Module):
         encoder_layer = nn.TransformerEncoderLayer(d_model=768, nhead=8)
         self.transformer_encoder = nn.TransformerEncoder(encoder_layer, num_layers=6)
         self.linear = nn.Linear(768, num_labels)
-        self.batch_size = 16
+        self.batch_size = 4
         self.tokenizer = XLMRobertaTokenizer.from_pretrained("xlm-roberta-base")
 
     def tokenize_lines(self, lines):
@@ -76,6 +76,10 @@ label_to_index = hierarchical_preprocess.build_label_mapping(file_path)
 
 # Step 2: Process the data using the dynamically generated label mapping
 documents, labels = hierarchical_preprocess.process_data(file_path, label_to_index)
+
+# Get first 1000 documents for faster training
+documents = documents[:1000]
+labels = labels[:1000]
 
 # Convert labels to binary
 labels = [[1 if l > 0 else 0 for l in label] for label in labels]

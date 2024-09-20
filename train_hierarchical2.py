@@ -11,6 +11,20 @@ from sklearn.metrics import (
     accuracy_score,
     f1_score,
 )
+import numpy as np
+
+
+# Calculate class weights based on the labels
+def calculate_class_weights(labels, num_classes):
+    # Flatten the list of labels and calculate the class frequencies
+    flattened_labels = [item for sublist in labels for item in sublist]
+    class_counts = np.bincount(flattened_labels, minlength=num_classes)
+
+    # Inverse of class frequencies as weights
+    class_weights = 1.0 / class_counts
+    class_weights = class_weights / class_weights.sum()  # Normalize weights to sum to 1
+
+    return torch.tensor(class_weights, dtype=torch.float).to(device)
 
 
 # Define a combined model
@@ -106,6 +120,8 @@ print(
     f"Train size: {len(train_docs)}, Val size: {len(val_docs)}, Test size: {len(test_docs)}"
 )
 
+class_weights = calculate_class_weights(labels, num_labels)
+
 # Instantiate the model
 model = DocumentClassifier(num_labels)
 
@@ -115,7 +131,9 @@ model.to(device)
 
 # Define the optimizer and loss function
 optimizer = optim.Adam(model.parameters(), lr=1e-5)
-loss_fn = nn.CrossEntropyLoss()  # Cross-entropy loss for multi-class classification
+loss_fn = nn.CrossEntropyLoss(
+    weight=class_weights
+)  # Cross-entropy loss for multi-class classification
 
 
 # Function to evaluate model on a given dataset

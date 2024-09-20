@@ -108,7 +108,8 @@ labels = [[1 if l > 0 else 0 for l in label] for label in labels]
 
 print(f"Number of documents: {len(documents)}")
 
-num_labels = len(label_to_index)
+# num_labels = len(label_to_index)
+num_labels = 2
 
 # Split data into train, test, and validation sets (70% train, 20% test, 10% validation)
 train_docs, temp_docs, train_labels, temp_labels = train_test_split(

@@ -147,6 +147,8 @@ def train_model(
         # Create a progress bar for the training loop
         with tqdm(total=len(train_docs), desc=f"Epoch {epoch + 1}/{epochs}") as pbar:
             for document, label in zip(train_docs, train_labels):
+                print(document)
+                exit()
                 optimizer.zero_grad()  # Reset gradients
                 tokens = tokenize_lines(document)
                 print(tokens)

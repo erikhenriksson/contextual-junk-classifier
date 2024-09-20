@@ -5,6 +5,12 @@ import torch.optim as optim
 from sklearn.model_selection import train_test_split
 import hierarchical_preprocess
 from tqdm import tqdm
+from sklearn.metrics import (
+    classification_report,
+    precision_recall_fscore_support,
+    accuracy_score,
+    f1_score,
+)
 
 
 # Define a combined model
@@ -116,8 +122,8 @@ loss_fn = nn.CrossEntropyLoss()  # Cross-entropy loss for multi-class classifica
 def evaluate_model(documents, labels, model, loss_fn):
     model.eval()  # Set model to evaluation mode
     total_loss = 0
-    correct = 0
-    total = 0
+    y_true = []
+    y_pred = []
 
     with torch.no_grad():  # Disable gradient calculation
         for document, label in zip(documents, labels):
@@ -128,16 +134,34 @@ def evaluate_model(documents, labels, model, loss_fn):
             loss = loss_fn(logits.view(-1, num_labels), label.view(-1))
             total_loss += loss.item()
 
-            # Compute accuracy
+            # Get the predicted class indices
             predicted_labels = torch.argmax(logits, dim=-1).view(
                 -1
-            )  # Predicted class indices
-            correct += (predicted_labels == label.view(-1)).sum().item()
-            total += label.numel()
+            )  # Shape: [num_lines]
+
+            # Append true and predicted labels for metrics calculation
+            y_true.extend(label.view(-1).tolist())
+            y_pred.extend(predicted_labels.tolist())
 
     avg_loss = total_loss / len(documents)
-    accuracy = correct / total if total > 0 else 0
-    return avg_loss, accuracy
+
+    # Calculate accuracy, precision, recall, F1 score, and other metrics
+    accuracy = accuracy_score(y_true, y_pred)
+    precision, recall, f1, _ = precision_recall_fscore_support(
+        y_true, y_pred, average="weighted"
+    )
+    f1_weighted = f1_score(y_true, y_pred, average="weighted")
+
+    # Generate classification report
+    class_report = classification_report(y_true, y_pred)
+
+    print("\nClassification Report:\n", class_report)
+    print(f"Accuracy: {accuracy}")
+    print(f"Precision (Weighted): {precision}")
+    print(f"Recall (Weighted): {recall}")
+    print(f"F1 Score (Weighted): {f1_weighted}")
+
+    return avg_loss, accuracy, precision, recall, f1_weighted
 
 
 # Example training loop with validation and progress bar
@@ -179,7 +203,9 @@ def train_model(
                 # print(torch.cuda.memory_summary())
 
         # Evaluate on validation set after each epoch
-        val_loss, val_accuracy = evaluate_model(val_docs, val_labels, model, loss_fn)
+        val_loss, val_accuracy, _, _, _ = evaluate_model(
+            val_docs, val_labels, model, loss_fn
+        )
 
         print(
             f"Epoch {epoch + 1}/{epochs}, Train Loss: {total_loss / len(train_docs)}, Val Loss: {val_loss}, Val Accuracy: {val_accuracy}"

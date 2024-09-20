@@ -15,7 +15,7 @@ import numpy as np
 
 
 # Calculate class weights based on the labels
-def calculate_class_weights(labels, num_classes):
+def calculate_class_weights(labels, num_classes, device):
     # Flatten the list of labels and calculate the class frequencies
     flattened_labels = [item for sublist in labels for item in sublist]
     class_counts = np.bincount(flattened_labels, minlength=num_classes)
@@ -120,7 +120,7 @@ print(
     f"Train size: {len(train_docs)}, Val size: {len(val_docs)}, Test size: {len(test_docs)}"
 )
 
-class_weights = calculate_class_weights(labels, num_labels)
+class_weights = calculate_class_weights(labels, num_labels, device)
 
 # Instantiate the model
 model = DocumentClassifier(num_labels)

@@ -13,6 +13,8 @@ from sklearn.metrics import (
 )
 import numpy as np
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 
 # Calculate class weights based on the labels
 def calculate_class_weights(labels, num_classes, device):
@@ -126,7 +128,7 @@ class_weights = calculate_class_weights(labels, num_labels, device)
 model = DocumentClassifier(num_labels)
 
 # Move the model to the appropriate device (GPU if available)
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 model.to(device)
 
 # Define the optimizer and loss function

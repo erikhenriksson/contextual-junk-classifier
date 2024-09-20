@@ -164,7 +164,7 @@ def train_model(
                 loss.backward()
                 optimizer.step()
 
-                total_loss += loss.item().detach()
+                total_loss += loss.detach().item()
 
                 # Update progress bar
                 pbar.set_postfix(

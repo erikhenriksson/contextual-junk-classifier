@@ -44,7 +44,7 @@ class DocumentClassifier(nn.Module):
                 :, 0, :
             ]  # [CLS] token embeddings
             all_embeddings.append(pooled_embeddings)
-
+        del input_ids, attention_mask, all_embeddings, encoded_inputs  # Free memory
         return torch.cat(all_embeddings, dim=0)  # Shape: [num_lines, 768]
 
     def forward(self, document_lines):

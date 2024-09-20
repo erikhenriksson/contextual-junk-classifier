@@ -131,7 +131,7 @@ def evaluate_model(documents, labels, model, loss_fn):
 def tokenize_lines(lines):
     # Tokenize all lines in one go, padding them to the same length
     encoded_inputs = tokenizer(
-        lines, return_tensors="pt", padding=True, truncation=True
+        lines, return_tensors="pt", padding=True, truncation=True, max_length=128
     )
     return encoded_inputs.to(device)
 
@@ -152,7 +152,7 @@ def train_model(
                 tokens = tokenize_lines(document)
                 print(tokens["input_ids"].shape)
                 # Forward pass
-                logits = model(tokens)  # Shape: [1, num_lines, num_labels]
+                logits = model(tokens)
 
                 # Assuming `label` is shape [num_lines] with class indices for each line
                 label = (

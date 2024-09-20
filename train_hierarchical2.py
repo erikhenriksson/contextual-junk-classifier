@@ -148,11 +148,10 @@ def train_model(
         with tqdm(total=len(train_docs), desc=f"Epoch {epoch + 1}/{epochs}") as pbar:
             for document, label in zip(train_docs, train_labels):
                 optimizer.zero_grad()  # Reset gradients
-
+                tokens = tokenize_lines(document)
+                print(tokens)
                 # Forward pass
-                logits = model(
-                    tokenize_lines(document)
-                )  # Shape: [1, num_lines, num_labels]
+                logits = model(tokens)  # Shape: [1, num_lines, num_labels]
 
                 # Assuming `label` is shape [num_lines] with class indices for each line
                 label = (
@@ -174,7 +173,7 @@ def train_model(
                     {"Loss": total_loss / (pbar.n + 1)}
                 )  # Update the loss display
                 pbar.update(1)  # Increment the progress bar
-                print(torch.cuda.memory_summary())
+                # print(torch.cuda.memory_summary())
 
         # Evaluate on validation set after each epoch
         val_loss, val_accuracy = evaluate_model(val_docs, val_labels, model, loss_fn)

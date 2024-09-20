@@ -23,9 +23,7 @@ class DocumentClassifier(nn.Module):
         encoded_inputs = self.tokenizer(
             lines, return_tensors="pt", padding=True, truncation=True
         )
-        return encoded_inputs.to(
-            self.line_model.device
-        )  # Ensure they are moved to the same device
+        return encoded_inputs
 
     def extract_line_embeddings(self, encoded_inputs):
         all_embeddings = []
@@ -117,8 +115,6 @@ def evaluate_model(documents, labels, model, loss_fn):
 
     with torch.no_grad():  # Disable gradient calculation
         for document, label in zip(documents, labels):
-            document = document[:5]
-            label = label[:5]
             logits = model(document)
             label = torch.tensor(label).to(device).unsqueeze(0)  # Shape: [1, num_lines]
 

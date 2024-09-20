@@ -4,6 +4,7 @@ import torch.nn as nn
 import torch.optim as optim
 from sklearn.model_selection import train_test_split
 import hierarchical_preprocess
+from tqdm import tqdm
 
 
 # Define a combined model
@@ -135,7 +136,7 @@ def evaluate_model(documents, labels, model, loss_fn):
     return avg_loss, accuracy
 
 
-# Example training loop with validation
+# Example training loop with validation and progress bar
 def train_model(
     train_docs, train_labels, val_docs, val_labels, model, optimizer, loss_fn, epochs=5
 ):
@@ -143,25 +144,33 @@ def train_model(
         model.train()  # Set the model to training mode
         total_loss = 0
 
-        for document, label in zip(train_docs, train_labels):
-            optimizer.zero_grad()  # Reset gradients
+        # Create a progress bar for the training loop
+        with tqdm(total=len(train_docs), desc=f"Epoch {epoch + 1}/{epochs}") as pbar:
+            for document, label in zip(train_docs, train_labels):
+                optimizer.zero_grad()  # Reset gradients
 
-            print(len(document))
+                # Forward pass
+                logits = model(document)  # Shape: [1, num_lines, num_labels]
 
-            # Forward pass
-            logits = model(document)  # Shape: [1, num_lines, num_labels]
+                # Assuming `label` is shape [num_lines] with class indices for each line
+                label = (
+                    torch.tensor(label).to(device).unsqueeze(0)
+                ).detach()  # Shape: [1, num_lines]
 
-            # Assuming `label` is shape [num_lines] with class indices for each line
-            label = torch.tensor(label).to(device).unsqueeze(0)  # Shape: [1, num_lines]
+                # Calculate loss
+                loss = loss_fn(logits.view(-1, num_labels), label.view(-1))
 
-            # Calculate loss
-            loss = loss_fn(logits.view(-1, num_labels), label.view(-1))
+                # Backward pass and optimization
+                loss.backward()
+                optimizer.step()
 
-            # Backward pass and optimization
-            loss.backward()
-            optimizer.step()
+                total_loss += loss.item()
 
-            total_loss += loss.item()
+                # Update progress bar
+                pbar.set_postfix(
+                    {"Loss": total_loss / (pbar.n + 1)}
+                )  # Update the loss display
+                pbar.update(1)  # Increment the progress bar
 
         # Evaluate on validation set after each epoch
         val_loss, val_accuracy = evaluate_model(val_docs, val_labels, model, loss_fn)

@@ -78,6 +78,8 @@ class DocumentClassifier(nn.Module):
 
     def forward(self, document_lines):
 
+        print(len(document_lines))
+
         # Tokenize document lines
         encoded_inputs = self.tokenize_lines(document_lines)
 

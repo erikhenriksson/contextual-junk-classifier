@@ -43,16 +43,17 @@ class DocumentClassifier(nn.Module):
 
         # Add Layer Normalization and Dropout
         self.layer_norm = nn.LayerNorm(768)
-        self.dropout = nn.Dropout(p=0.3)  # Dropout probability of 0.3 (can adjust)
+        self.dropout = nn.Dropout(p=0.1)  # Dropout probability of 0.3 (can adjust)
 
         # Final linear classification layer
         self.linear = nn.Linear(768, num_labels)
         self.batch_size = 16
+        self.transformer_batch_size = 8
         self.tokenizer = XLMRobertaTokenizer.from_pretrained("xlm-roberta-base")
 
     def tokenize_lines(self, lines):
         encoded_inputs = self.tokenizer(
-            lines, return_tensors="pt", padding=True, truncation=True, max_length=64
+            lines, return_tensors="pt", padding=True, truncation=True, max_length=512
         )
         return encoded_inputs.to(self.line_model.device)
 
@@ -76,28 +77,51 @@ class DocumentClassifier(nn.Module):
         return torch.cat(all_embeddings, dim=0)  # Shape: [num_lines, 768]
 
     def forward(self, document_lines):
+
         # Tokenize document lines
         encoded_inputs = self.tokenize_lines(document_lines)
 
         # Extract embeddings from XLM-Roberta in batches
-        embeddings = self.extract_line_embeddings(encoded_inputs)
+        embeddings = self.extract_line_embeddings(
+            encoded_inputs
+        )  # Shape: [num_lines, 768]
 
-        # Add batch dimension for transformer encoder input (1 document at a time)
-        embeddings = embeddings.unsqueeze(0)  # Shape: [1, num_lines, 768]
+        # Initialize a list to store logits from each batch
+        all_logits = []
 
-        # Pass through Transformer Encoder
-        encoded_output = self.transformer_encoder(
-            embeddings
-        )  # Shape: [1, num_lines, 768]
+        # Split document into batches of N lines
+        for i in range(0, embeddings.size(0)):
+            # Get the current batch of embeddings
+            batch_embeddings = embeddings[
+                i : i + self.transformer_batch_size
+            ]  # Shape: [batch_size, 768]
 
-        # Apply Layer Normalization and Dropout
-        encoded_output = self.layer_norm(encoded_output)
-        encoded_output = self.dropout(encoded_output)
+            # Add batch dimension for transformer encoder input (1 document batch at a time)
+            batch_embeddings = batch_embeddings.unsqueeze(
+                0
+            )  # Shape: [1, batch_size, 768]
 
-        # Apply linear classification layer
-        logits = self.linear(encoded_output)  # Shape: [1, num_lines, num_labels]
+            # Pass through Transformer Encoder
+            encoded_output = self.transformer_encoder(
+                batch_embeddings
+            )  # Shape: [1, batch_size, 768]
 
-        return logits
+            # Apply Layer Normalization and Dropout
+            encoded_output = self.layer_norm(encoded_output)
+            encoded_output = self.dropout(encoded_output)
+
+            # Apply linear classification layer
+            logits = self.linear(encoded_output)  # Shape: [1, batch_size, num_labels]
+
+            # Remove the batch dimension and store the logits for this batch
+            all_logits.append(logits.squeeze(0))  # Shape: [batch_size, num_labels]
+
+        # Concatenate all the logits from different batches along the first dimension (lines)
+        all_logits = torch.cat(
+            all_logits, dim=0
+        )  # Shape: [total_num_lines, num_labels]
+
+        return all_logits
 
 
 if train == "llm":

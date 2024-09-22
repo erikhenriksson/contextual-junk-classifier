@@ -53,7 +53,7 @@ class DocumentClassifier(nn.Module):
 
     def tokenize_lines(self, lines):
         encoded_inputs = self.tokenizer(
-            lines, return_tensors="pt", padding=True, truncation=True, max_length=512
+            lines, return_tensors="pt", padding=True, truncation=True, max_length=256
         )
         return encoded_inputs.to(self.line_model.device)
 

@@ -86,6 +86,9 @@ class DocumentClassifier(nn.Module):
             encoded_inputs
         )  # Shape: [num_lines, 768]
 
+        print(embeddings.size())
+        exit()
+
         # Initialize a list to store logits from each batch
         all_logits = []
 

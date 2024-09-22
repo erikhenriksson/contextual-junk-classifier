@@ -24,7 +24,7 @@ def load_data(file_path):
 
     # Iterate through the documents and process each entry
     for doc in documents:
-        lines = doc["text"].split("\n")  # Split text into lines
+        lines = doc["text"]
         doc_labels = [(int(x)) for x in doc["labels"]]  # Split labels into lines
         texts.extend(lines)
         labels.extend(

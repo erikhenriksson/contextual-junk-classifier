@@ -16,32 +16,39 @@ import torch
 
 # Load data from JSON file
 def load_data(file_path):
-    with open(file_path, "r", encoding="utf-8") as f:
-        documents = json.load(f)
-
-    texts = []
-    labels = []
-
-    # Iterate through the documents and process each entry
-    for doc in documents:
-        lines = doc["text"]
-        doc_labels = [(int(x)) for x in doc["labels"]]  # Split labels into lines
-        texts.extend(lines)
-        labels.extend(
-            [int(label) for label in doc_labels]
-        )  # Convert label strings to integers
-
-    return texts, labels
-
-
-# Function to split the data into train, test, and dev sets
-def split_data(texts, labels):
-    train_texts, temp_texts, train_labels, temp_labels = train_test_split(
-        texts, labels, test_size=0.3, stratify=labels, random_state=42
+    train_texts, train_labels, test_texts, test_labels, dev_texts, dev_labels = (
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
     )
-    test_texts, dev_texts, test_labels, dev_labels = train_test_split(
-        temp_texts, temp_labels, test_size=1 / 3, stratify=temp_labels, random_state=42
-    )
+    files = ["dev.json", "test.json", "train.json"]
+    for file in files:
+        file_path = f"f{file_path}/{file}"
+        with open(file_path, "r", encoding="utf-8") as f:
+            documents = json.load(f)
+
+        texts = []
+        labels = []
+
+        # Iterate through the documents and process each entry
+        for doc in documents:
+            lines = doc["text"]
+            doc_labels = [(int(x)) for x in doc["labels"]]
+            texts.extend(lines)
+            labels.extend([int(label) for label in doc_labels])
+
+        if file == "dev.json":
+            dev_texts = texts
+            dev_labels = labels
+        elif file == "test.json":
+            test_texts = texts
+            test_labels = labels
+        else:
+            train_texts = texts
+            train_labels = labels
 
     return train_texts, train_labels, test_texts, test_labels, dev_texts, dev_labels
 
@@ -57,9 +64,8 @@ def compute_metrics(pred):
 # Main function to run the training process
 def main(data_path, output_dir="base_model"):
     # Load and preprocess data
-    texts, labels = load_data(data_path)
     train_texts, train_labels, test_texts, test_labels, dev_texts, dev_labels = (
-        split_data(texts, labels)
+        load_data(data_path)
     )
 
     # Tokenize data using XLM-Roberta tokenizer
@@ -131,5 +137,5 @@ def main(data_path, output_dir="base_model"):
 
 
 if __name__ == "__main__":
-    data_path = "eval.json"  # Replace with your JSON data file path
+    data_path = "data/en"  # Replace with your JSON data file path
     main(data_path)

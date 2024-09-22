@@ -274,7 +274,7 @@ num_labels = 2
 data = load_data("data/en")
 
 # Instantiate the model
-model = DocumentClassifier(2).to
+model = DocumentClassifier(2).to(device)
 
 # Define the optimizer and loss function
 optimizer = AdamW(model.parameters(), lr=5e-6, weight_decay=0.01)

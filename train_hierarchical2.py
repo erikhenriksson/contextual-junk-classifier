@@ -56,6 +56,7 @@ class DocumentClassifier(nn.Module):
         encoded_inputs = self.tokenizer(
             lines, return_tensors="pt", padding=True, truncation=True, max_length=256
         )
+        print("t")
         return encoded_inputs.to(self.line_model.device)
 
     def extract_line_embeddings(self, encoded_inputs):

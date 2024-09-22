@@ -14,43 +14,25 @@ from transformers import (
 import torch
 
 
-# Load data from JSON file
+# Load data from JSON files
 def load_data(file_path):
-    train_texts, train_labels, test_texts, test_labels, dev_texts, dev_labels = (
-        [],
-        [],
-        [],
-        [],
-        [],
-        [],
-    )
-    files = ["dev.json", "test.json", "train.json"]
-    for file in files:
-        file_path = f"f{file_path}/{file}"
-        with open(file_path, "r", encoding="utf-8") as f:
+    data_splits = {}
+    for split in ["dev", "test", "train"]:
+        with open(os.path.join(file_path, f"{split}.json"), "r", encoding="utf-8") as f:
             documents = json.load(f)
+            texts = [line for doc in documents for line in doc["text"]]
+            labels = [int(label) for doc in documents for label in doc["labels"]]
+            data_splits[f"{split}_texts"] = texts
+            data_splits[f"{split}_labels"] = labels
 
-        texts = []
-        labels = []
-
-        # Iterate through the documents and process each entry
-        for doc in documents:
-            lines = doc["text"]
-            doc_labels = [(int(x)) for x in doc["labels"]]
-            texts.extend(lines)
-            labels.extend([int(label) for label in doc_labels])
-
-        if file == "dev.json":
-            dev_texts = texts
-            dev_labels = labels
-        elif file == "test.json":
-            test_texts = texts
-            test_labels = labels
-        else:
-            train_texts = texts
-            train_labels = labels
-
-    return train_texts, train_labels, test_texts, test_labels, dev_texts, dev_labels
+    return (
+        data_splits["train_texts"],
+        data_splits["train_labels"],
+        data_splits["test_texts"],
+        data_splits["test_labels"],
+        data_splits["dev_texts"],
+        data_splits["dev_labels"],
+    )
 
 
 # Function to compute weighted F1 score
@@ -64,9 +46,7 @@ def compute_metrics(pred):
 # Main function to run the training process
 def main(data_path, output_dir="base_model"):
     # Load and preprocess data
-    train_texts, train_labels, test_texts, test_labels, dev_texts, dev_labels = (
-        load_data(data_path)
-    )
+    data = load_data(data_path)
 
     # Tokenize data using XLM-Roberta tokenizer
     tokenizer = XLMRobertaTokenizer.from_pretrained("xlm-roberta-base")
@@ -75,9 +55,15 @@ def main(data_path, output_dir="base_model"):
         return tokenizer(batch["text"], padding=True, truncation=True)
 
     # Create Dataset objects
-    train_dataset = Dataset.from_dict({"text": train_texts, "label": train_labels})
-    test_dataset = Dataset.from_dict({"text": test_texts, "label": test_labels})
-    dev_dataset = Dataset.from_dict({"text": dev_texts, "label": dev_labels})
+    train_dataset = Dataset.from_dict(
+        {"text": data["train_texts"], "label": data["train_labels"]}
+    )
+    test_dataset = Dataset.from_dict(
+        {"text": data["test_texts"], "label": data["test_labels"]}
+    )
+    dev_dataset = Dataset.from_dict(
+        {"text": data["dev_texts"], "label": data["dev_labels"]}
+    )
 
     # Tokenize the datasets
     tokenized_train = train_dataset.map(tokenize, batched=True)

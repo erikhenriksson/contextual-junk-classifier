@@ -47,12 +47,12 @@ class DocumentClassifier(nn.Module):
 
         # Final linear classification layer
         self.linear = nn.Linear(768, num_labels)
-        self.batch_size = 4
+        self.batch_size = 16
         self.tokenizer = XLMRobertaTokenizer.from_pretrained("xlm-roberta-base")
 
     def tokenize_lines(self, lines):
         encoded_inputs = self.tokenizer(
-            lines, return_tensors="pt", padding=True, truncation=True, max_length=128
+            lines, return_tensors="pt", padding=True, truncation=True, max_length=64
         )
         return encoded_inputs.to(self.line_model.device)
 

@@ -271,7 +271,7 @@ def train_model(
 
 
 num_labels = 2
-data = load_data("eval.json")
+data = load_data("data/en")
 
 # Instantiate the model
 model = DocumentClassifier(2).to

@@ -60,6 +60,7 @@ class DocumentClassifier(nn.Module):
         Forward pass for the document classifier:
         - Tokenize, extract embeddings, pass through transformer and final classifier.
         """
+        print(len(document_lines))
         all_logits = []  # Store logits from all batches
 
         # Process document lines in batches of size self.batch_size

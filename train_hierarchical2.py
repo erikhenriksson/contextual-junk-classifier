@@ -74,6 +74,9 @@ class DocumentClassifier(nn.Module):
             pooled_embeddings = outputs.last_hidden_state[
                 :, 0, :
             ]  # [CLS] token embeddings
+            # Move embeddings to CPU to save GPU memory
+            pooled_embeddings = pooled_embeddings.cpu()
+
             all_embeddings.append(pooled_embeddings)
             print("done!")
 
@@ -100,7 +103,7 @@ class DocumentClassifier(nn.Module):
             ]  # Shape: [batch_size, 768]
 
             # Add batch dimension for transformer encoder input (1 document batch at a time)
-            batch_embeddings = batch_embeddings.unsqueeze(
+            batch_embeddings = batch_embeddings.to(self.line_model.device).unsqueeze(
                 0
             )  # Shape: [1, batch_size, 768]
 

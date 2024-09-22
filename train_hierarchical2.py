@@ -78,8 +78,6 @@ class DocumentClassifier(nn.Module):
 
     def forward(self, document_lines):
 
-        print(len(document_lines))
-
         # Tokenize document lines
         encoded_inputs = self.tokenize_lines(document_lines)
 
@@ -88,14 +86,11 @@ class DocumentClassifier(nn.Module):
             encoded_inputs
         )  # Shape: [num_lines, 768]
 
-        print(embeddings.size())
-        exit()
-
         # Initialize a list to store logits from each batch
         all_logits = []
 
         # Split document into batches of N lines
-        for i in range(0, embeddings.size(0)):
+        for i in range(0, embeddings.size(0), self.transformer_batch_size):
             # Get the current batch of embeddings
             batch_embeddings = embeddings[
                 i : i + self.transformer_batch_size

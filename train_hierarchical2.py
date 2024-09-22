@@ -50,6 +50,7 @@ class DocumentClassifier(nn.Module):
 
         # Batch size for tokenization, embedding extraction, and Transformer
         self.batch_size = 16
+        self.max_size = 256  # Maximum number of tokens in a line
         self.min_batch_size = (
             4  # Minimum batch size for the last batch to be processed alone
         )
@@ -84,7 +85,7 @@ class DocumentClassifier(nn.Module):
                 return_tensors="pt",
                 padding=True,
                 truncation=True,
-                max_length=256,
+                max_length=self.max_size,
             ).to(self.line_model.device)
 
             # Step 2: Extract embeddings from XLM-Roberta for the current batch

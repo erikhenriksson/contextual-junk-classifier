@@ -48,7 +48,7 @@ class DocumentClassifier(nn.Module):
         # Final linear classification layer
         self.linear = nn.Linear(768, num_labels)
         self.batch_size = 16
-        self.transformer_batch_size = 8
+        self.transformer_batch_size = 4
         self.tokenizer = XLMRobertaTokenizer.from_pretrained("xlm-roberta-base")
 
     def tokenize_lines(self, lines):
@@ -120,7 +120,7 @@ class DocumentClassifier(nn.Module):
         all_logits = torch.cat(
             all_logits, dim=0
         )  # Shape: [total_num_lines, num_labels]
-
+        print(len(all_logits))
         return all_logits
 
 

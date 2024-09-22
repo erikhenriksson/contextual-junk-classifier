@@ -25,14 +25,7 @@ def load_data(file_path):
             data_splits[f"{split}_texts"] = texts
             data_splits[f"{split}_labels"] = labels
 
-    return (
-        data_splits["train_texts"],
-        data_splits["train_labels"],
-        data_splits["test_texts"],
-        data_splits["test_labels"],
-        data_splits["dev_texts"],
-        data_splits["dev_labels"],
-    )
+    return data_splits
 
 
 # Function to compute weighted F1 score

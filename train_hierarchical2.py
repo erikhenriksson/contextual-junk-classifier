@@ -221,7 +221,7 @@ def train_model(
     optimizer,
     loss_fn,
     epochs=15,
-    patience=3,
+    patience=5,
     lr_scheduler_ratio=0.95,
     evaluation_steps=100,
 ):

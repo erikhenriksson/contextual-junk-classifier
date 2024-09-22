@@ -63,6 +63,6 @@ def process_eval_data(file_path):
 
         for d in data:
             documents.append(d["text"])
-            labels.append([int(not (int(x))) for x in d["label"]])
+            labels.append([int(not (int(x))) for x in d["labels"]])
 
     return documents, labels

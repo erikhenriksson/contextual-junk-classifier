@@ -209,11 +209,40 @@ def evaluate_model(documents, labels, model, loss_fn):
     return avg_loss, accuracy, precision, recall, f1_weighted
 
 
-# Example training loop with validation and progress bar
+from torch.optim.lr_scheduler import LambdaLR
+
+
 def train_model(
-    train_docs, train_labels, val_docs, val_labels, model, optimizer, loss_fn, epochs=5
+    train_docs,
+    train_labels,
+    val_docs,
+    val_labels,
+    model,
+    optimizer,
+    loss_fn,
+    epochs=15,
+    patience=3,
+    lr_scheduler_ratio=0.95,
+    evaluation_steps=100,
 ):
+    # Initialize early stopping parameters
+    best_val_loss = float("inf")
+    epochs_no_improve = 0
+    early_stop = False
+    global_step = 0  # Keep track of the total number of steps
+
+    # Set up a linear learning rate scheduler
+    num_training_steps = len(train_docs) * epochs  # Total number of steps (batches)
+    scheduler = LambdaLR(
+        optimizer,
+        lr_lambda=lambda step: max(1 - step / num_training_steps, lr_scheduler_ratio),
+    )
+
     for epoch in range(epochs):
+        if early_stop:
+            print(f"Early stopping at epoch {epoch + 1}")
+            break
+
         model.train()  # Set the model to training mode
         total_loss = 0
 
@@ -235,26 +264,51 @@ def train_model(
 
                 # Backward pass and optimization
                 loss.backward()
-                loss = loss.detach()
                 optimizer.step()
+
+                # Update the learning rate scheduler
+                scheduler.step()
 
                 total_loss += loss.item()
 
                 # Update progress bar
-                pbar.set_postfix(
-                    {"Loss": total_loss / (pbar.n + 1)}
-                )  # Update the loss display
-                pbar.update(1)  # Increment the progress bar
-                # print(torch.cuda.memory_summary())
+                pbar.set_postfix({"Loss": total_loss / (pbar.n + 1)})
+                pbar.update(1)
 
-        # Evaluate on validation set after each epoch
-        val_loss, val_accuracy, _, _, _ = evaluate_model(
-            val_docs, val_labels, model, loss_fn
-        )
+                global_step += 1  # Increment the global step counter
 
-        print(
-            f"Epoch {epoch + 1}/{epochs}, Train Loss: {total_loss / len(train_docs)}, Val Loss: {val_loss}, Val Accuracy: {val_accuracy}"
-        )
+                # Evaluate and check for early stopping at every `evaluation_steps`
+                if global_step % evaluation_steps == 0:
+                    model.eval()  # Switch to evaluation mode
+                    val_loss, val_accuracy, _, _, _ = evaluate_model(
+                        val_docs, val_labels, model, loss_fn
+                    )
+                    print(
+                        f"Step {global_step}: Val Loss = {val_loss}, Val Accuracy = {val_accuracy}"
+                    )
+
+                    # Early stopping check
+                    if val_loss < best_val_loss:
+                        best_val_loss = val_loss
+                        epochs_no_improve = 0
+                    else:
+                        epochs_no_improve += 1
+
+                    if epochs_no_improve >= patience:
+                        early_stop = True
+                        print(
+                            f"Early stopping triggered at step {global_step} after {patience} evaluations without improvement."
+                        )
+                        break
+
+                    model.train()  # Switch back to training mode
+
+        # Log epoch-level statistics
+        print(f"Epoch {epoch + 1}/{epochs}, Train Loss: {total_loss / len(train_docs)}")
+
+        # If early stopping was triggered inside the loop, break the epoch loop as well
+        if early_stop:
+            break
 
 
 # Train the model and evaluate on validation set

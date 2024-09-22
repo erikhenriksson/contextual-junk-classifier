@@ -37,26 +37,30 @@ class DocumentClassifier(nn.Module):
         super(DocumentClassifier, self).__init__()
         self.line_model = XLMRobertaModel.from_pretrained("xlm-roberta-base")
         encoder_layer = nn.TransformerEncoderLayer(d_model=768, nhead=8)
+
+        # Transformer encoder with multiple layers
         self.transformer_encoder = nn.TransformerEncoder(encoder_layer, num_layers=6)
+
+        # Add Layer Normalization and Dropout
+        self.layer_norm = nn.LayerNorm(768)
+        self.dropout = nn.Dropout(p=0.3)  # Dropout probability of 0.3 (can adjust)
+
+        # Final linear classification layer
         self.linear = nn.Linear(768, num_labels)
         self.batch_size = 4
         self.tokenizer = XLMRobertaTokenizer.from_pretrained("xlm-roberta-base")
 
     def tokenize_lines(self, lines):
-        # Tokenize all lines in one go, padding them to the same length
         encoded_inputs = self.tokenizer(
-            lines, return_tensors="pt", padding=True, truncation=True, max_length=64
+            lines, return_tensors="pt", padding=True, truncation=True, max_length=128
         )
-        return encoded_inputs.to(
-            self.line_model.device
-        )  # Ensure they are moved to the same device
+        return encoded_inputs.to(self.line_model.device)
 
     def extract_line_embeddings(self, encoded_inputs):
         all_embeddings = []
         input_ids = encoded_inputs["input_ids"]
         attention_mask = encoded_inputs["attention_mask"]
 
-        # Process in batches
         for i in range(0, input_ids.size(0), self.batch_size):
             batch_input_ids = input_ids[i : i + self.batch_size]
             batch_attention_mask = attention_mask[i : i + self.batch_size]
@@ -72,7 +76,7 @@ class DocumentClassifier(nn.Module):
         return torch.cat(all_embeddings, dim=0)  # Shape: [num_lines, 768]
 
     def forward(self, document_lines):
-        # Tokenize document lines in one go (handles padding within the batch)
+        # Tokenize document lines
         encoded_inputs = self.tokenize_lines(document_lines)
 
         # Extract embeddings from XLM-Roberta in batches
@@ -86,10 +90,13 @@ class DocumentClassifier(nn.Module):
             embeddings
         )  # Shape: [1, num_lines, 768]
 
+        # Apply Layer Normalization and Dropout
+        encoded_output = self.layer_norm(encoded_output)
+        encoded_output = self.dropout(encoded_output)
+
         # Apply linear classification layer
         logits = self.linear(encoded_output)  # Shape: [1, num_lines, num_labels]
 
-        # Return logits
         return logits
 
 

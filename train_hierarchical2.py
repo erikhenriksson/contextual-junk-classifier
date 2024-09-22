@@ -68,6 +68,8 @@ class DocumentClassifier(nn.Module):
             # Get the current batch of document lines
             batch_lines = document_lines[i : i + self.batch_size]
 
+            print(len(batch_lines))
+
             # Step 1: Tokenize the current batch of lines
             encoded_inputs = self.tokenizer(
                 batch_lines,

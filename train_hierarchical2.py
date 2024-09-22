@@ -1,3 +1,5 @@
+import os
+import json
 from transformers import XLMRobertaTokenizer, XLMRobertaModel
 import torch
 import torch.nn as nn
@@ -16,8 +18,6 @@ import numpy as np
 from torch.optim import AdamW
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-use_class_weights = False
-train = "eval"
 
 
 # Calculate class weights based on the labels
@@ -37,7 +37,7 @@ def calculate_class_weights(labels, num_classes, device):
 class DocumentClassifier(nn.Module):
     def __init__(self, num_labels):
         super(DocumentClassifier, self).__init__()
-        self.line_model = XLMRobertaModel.from_pretrained("xlm-roberta-large")
+        self.line_model = XLMRobertaModel.from_pretrained("base_model")
 
         # Transformer encoder with multiple layers
         encoder_layer = nn.TransformerEncoderLayer(d_model=768, nhead=8)
@@ -111,59 +111,18 @@ class DocumentClassifier(nn.Module):
         return all_logits
 
 
-if train == "llm":
+# Load data from JSON files
+def load_data(file_path):
+    data_splits = {}
+    for split in ["dev", "test", "train"]:
+        with open(os.path.join(file_path, f"{split}.json"), "r", encoding="utf-8") as f:
+            documents = json.load(f)
+            texts = [line for doc in documents for line in doc["text"]]
+            labels = [int(label) for doc in documents for label in doc["labels"]]
+            data_splits[f"{split}_texts"] = texts
+            data_splits[f"{split}_labels"] = labels
 
-    file_path = "../llm-junklabeling/output/fineweb_annotated_gpt4_multi_2.jsonl"
-
-    # Step 1: Dynamically create label mapping based on the data
-    label_to_index = hierarchical_preprocess.build_label_mapping(file_path)
-
-    # Step 2: Process the data using the dynamically generated label mapping
-    documents, labels = hierarchical_preprocess.process_data(file_path, label_to_index)
-
-    # Get first 1000 documents for faster training
-    documents = documents[:1000]
-    labels = labels[:1000]
-
-    # Convert labels to binary
-    labels = [[1 if l > 0 else 0 for l in label] for label in labels]
-
-    print(f"Number of documents: {len(documents)}")
-
-elif train == "eval":
-
-    file_path = "eval.json"
-    documents, labels = hierarchical_preprocess.process_eval_data(file_path)
-
-# num_labels = len(label_to_index)
-num_labels = 2
-
-# Split data into train, test, and validation sets (70% train, 20% test, 10% validation)
-train_docs, temp_docs, train_labels, temp_labels = train_test_split(
-    documents, labels, test_size=0.3, random_state=42
-)
-val_docs, test_docs, val_labels, test_labels = train_test_split(
-    temp_docs, temp_labels, test_size=0.666, random_state=42
-)
-
-print(
-    f"Train size: {len(train_docs)}, Val size: {len(val_docs)}, Test size: {len(test_docs)}"
-)
-
-class_weights = calculate_class_weights(labels, num_labels, device)
-
-# Instantiate the model
-model = DocumentClassifier(num_labels)
-
-# Move the model to the appropriate device (GPU if available)
-
-model.to(device)
-
-# Define the optimizer and loss function
-optimizer = AdamW(model.parameters(), lr=5e-6, weight_decay=0.01)
-loss_fn = nn.CrossEntropyLoss(
-    weight=class_weights if use_class_weights else None
-)  # Cross-entropy loss for multi-class classification
+    return data_splits
 
 
 # Function to evaluate model on a given dataset
@@ -311,9 +270,29 @@ def train_model(
             break
 
 
+num_labels = 2
+data = load_data("eval.json")
+
+# Instantiate the model
+model = DocumentClassifier(2).to
+
+# Define the optimizer and loss function
+optimizer = AdamW(model.parameters(), lr=5e-6, weight_decay=0.01)
+loss_fn = nn.CrossEntropyLoss()
+
 # Train the model and evaluate on validation set
-train_model(train_docs, train_labels, val_docs, val_labels, model, optimizer, loss_fn)
+train_model(
+    data["train_texts"],
+    data["train_labels"],
+    data["dev_texts"],
+    data["dev_labels"],
+    model,
+    optimizer,
+    loss_fn,
+)
 
 # Evaluate the model on the test set
-test_loss, test_accuracy = evaluate_model(test_docs, test_labels, model, loss_fn)
+test_loss, test_accuracy, _, _, _ = evaluate_model(
+    data["test_texts"], data["test_labels"], model, loss_fn
+)
 print(f"Test Loss: {test_loss}, Test Accuracy: {test_accuracy}")

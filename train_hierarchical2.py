@@ -79,6 +79,8 @@ class DocumentClassifier(nn.Module):
                 max_length=self.max_length,
             ).to(self.line_model.device)
 
+            print(encoded_inputs["input_ids"].shape)
+
             # Step 2: Extract embeddings from XLM-Roberta for the current batch
             outputs = self.line_model(
                 input_ids=encoded_inputs["input_ids"],

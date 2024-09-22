@@ -53,3 +53,16 @@ def process_data(file_path, label_to_index):
             labels.append(annotation_indices)  # Append the padded annotations
 
     return documents, labels
+
+
+def process_eval_data(file_path):
+    documents = []
+    labels = []
+    with open(file_path, "r") as f:
+        data = json.loads(f.read())
+
+        for d in data:
+            documents.append(d["text"])
+            labels.append([int(not (int(x))) for x in d["label"]])
+
+    return documents, labels

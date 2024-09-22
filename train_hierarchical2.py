@@ -14,6 +14,8 @@ from sklearn.metrics import (
 import numpy as np
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+use_class_weights = False
+train = "eval"
 
 
 # Calculate class weights based on the labels
@@ -91,22 +93,29 @@ class DocumentClassifier(nn.Module):
         return logits
 
 
-file_path = "../llm-junklabeling/output/fineweb_annotated_gpt4_multi_2.jsonl"
+if train == "llm":
 
-# Step 1: Dynamically create label mapping based on the data
-label_to_index = hierarchical_preprocess.build_label_mapping(file_path)
+    file_path = "../llm-junklabeling/output/fineweb_annotated_gpt4_multi_2.jsonl"
 
-# Step 2: Process the data using the dynamically generated label mapping
-documents, labels = hierarchical_preprocess.process_data(file_path, label_to_index)
+    # Step 1: Dynamically create label mapping based on the data
+    label_to_index = hierarchical_preprocess.build_label_mapping(file_path)
 
-# Get first 1000 documents for faster training
-documents = documents[:1000]
-labels = labels[:1000]
+    # Step 2: Process the data using the dynamically generated label mapping
+    documents, labels = hierarchical_preprocess.process_data(file_path, label_to_index)
 
-# Convert labels to binary
-labels = [[1 if l > 0 else 0 for l in label] for label in labels]
+    # Get first 1000 documents for faster training
+    documents = documents[:1000]
+    labels = labels[:1000]
 
-print(f"Number of documents: {len(documents)}")
+    # Convert labels to binary
+    labels = [[1 if l > 0 else 0 for l in label] for label in labels]
+
+    print(f"Number of documents: {len(documents)}")
+
+elif train == "eval":
+
+    file_path = "eval.json"
+    documents, labels = hierarchical_preprocess.process_eval_data(file_path)
 
 # num_labels = len(label_to_index)
 num_labels = 2
@@ -135,7 +144,7 @@ model.to(device)
 # Define the optimizer and loss function
 optimizer = optim.Adam(model.parameters(), lr=1e-5)
 loss_fn = nn.CrossEntropyLoss(
-    weight=class_weights
+    weight=class_weights if use_class_weights else None
 )  # Cross-entropy loss for multi-class classification
 
 

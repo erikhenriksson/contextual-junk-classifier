@@ -32,6 +32,7 @@ def calculate_class_weights(labels, num_classes, device):
     return torch.tensor(class_weights, dtype=torch.float).to(device)
 
 
+# Define a combined model
 class DocumentClassifier(nn.Module):
     def __init__(self, num_labels):
         super(DocumentClassifier, self).__init__()
@@ -50,10 +51,7 @@ class DocumentClassifier(nn.Module):
 
         # Batch size for tokenization, embedding extraction, and Transformer
         self.batch_size = 16
-        self.max_size = 256  # Maximum number of tokens in a line
-        self.min_batch_size = (
-            4  # Minimum batch size for the last batch to be processed alone
-        )
+        self.max_length = 512
         self.tokenizer = XLMRobertaTokenizer.from_pretrained("xlm-roberta-base")
 
     def forward(self, document_lines):
@@ -64,20 +62,9 @@ class DocumentClassifier(nn.Module):
         all_logits = []  # Store logits from all batches
 
         # Process document lines in batches of size self.batch_size
-        num_lines = len(document_lines)
-
-        # Loop over batches of lines
-        i = 0
-        while i < num_lines:
-            # Determine the size of the current batch
-            if i + self.batch_size >= num_lines and num_lines - i < self.min_batch_size:
-                # If the last batch is too small, concatenate it with the previous batch
-                batch_lines = document_lines[i - self.batch_size : num_lines]
-                i = num_lines  # Set i to the end since we are processing the last batch
-            else:
-                # Otherwise, process normally in self.batch_size chunks
-                batch_lines = document_lines[i : i + self.batch_size]
-                i += self.batch_size
+        for i in range(0, len(document_lines), self.batch_size):
+            # Get the current batch of document lines
+            batch_lines = document_lines[i : i + self.batch_size]
 
             # Step 1: Tokenize the current batch of lines
             encoded_inputs = self.tokenizer(
@@ -85,7 +72,7 @@ class DocumentClassifier(nn.Module):
                 return_tensors="pt",
                 padding=True,
                 truncation=True,
-                max_length=self.max_size,
+                max_length=self.max_length,
             ).to(self.line_model.device)
 
             # Step 2: Extract embeddings from XLM-Roberta for the current batch

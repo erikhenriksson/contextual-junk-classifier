@@ -125,8 +125,8 @@ def load_data(file_path):
     for split in ["dev", "test", "train"]:
         with open(os.path.join(file_path, f"{split}.json"), "r", encoding="utf-8") as f:
             documents = json.load(f)
-            texts = [line for doc in documents for line in doc["text"]]
-            labels = [int(label) for doc in documents for label in doc["labels"]]
+            texts = [x["text"] for x in documents]
+            labels = [[int(y) for y in x["label"]] for x in documents]
             data_splits[f"{split}_texts"] = texts
             data_splits[f"{split}_labels"] = labels
 

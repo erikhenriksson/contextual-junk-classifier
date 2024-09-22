@@ -39,7 +39,7 @@ class DocumentClassifier(nn.Module):
         encoder_layer = nn.TransformerEncoderLayer(d_model=768, nhead=8)
 
         # Transformer encoder with multiple layers
-        self.transformer_encoder = nn.TransformerEncoder(encoder_layer, num_layers=6)
+        self.transformer_encoder = nn.TransformerEncoder(encoder_layer, num_layers=12)
 
         # Add Layer Normalization and Dropout
         self.layer_norm = nn.LayerNorm(768)

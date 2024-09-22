@@ -12,7 +12,7 @@ from sklearn.metrics import (
     f1_score,
 )
 import numpy as np
-from transformers import AdamW
+from torch.optim import AdamW
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 use_class_weights = False
@@ -158,7 +158,7 @@ model = DocumentClassifier(num_labels)
 model.to(device)
 
 # Define the optimizer and loss function
-optimizer = AdamW(model.parameters(), lr=1e-5, weight_decay=0.01)
+optimizer = AdamW(model.parameters(), lr=5e-6, weight_decay=0.01)
 loss_fn = nn.CrossEntropyLoss(
     weight=class_weights if use_class_weights else None
 )  # Cross-entropy loss for multi-class classification

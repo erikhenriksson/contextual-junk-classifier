@@ -60,16 +60,13 @@ class DocumentClassifier(nn.Module):
         Forward pass for the document classifier:
         - Tokenize, extract embeddings, pass through transformer and final classifier.
         """
-        print(len(document_lines))
-        print(document_lines)
+
         all_logits = []  # Store logits from all batches
 
         # Process document lines in batches of size self.batch_size
         for i in range(0, len(document_lines), self.batch_size):
             # Get the current batch of document lines
             batch_lines = document_lines[i : i + self.batch_size]
-
-            print(len(batch_lines))
 
             # Step 1: Tokenize the current batch of lines
             encoded_inputs = self.tokenizer(
@@ -79,8 +76,6 @@ class DocumentClassifier(nn.Module):
                 truncation=True,
                 max_length=self.max_length,
             ).to(self.line_model.device)
-
-            print(encoded_inputs["input_ids"].shape)
 
             # Step 2: Extract embeddings from XLM-Roberta for the current batch
             outputs = self.line_model(
@@ -126,7 +121,7 @@ def load_data(file_path):
         with open(os.path.join(file_path, f"{split}.json"), "r", encoding="utf-8") as f:
             documents = json.load(f)
             texts = [x["text"] for x in documents]
-            labels = [[int(y) for y in x["label"]] for x in documents]
+            labels = [[int(y) for y in x["labels"]] for x in documents]
             data_splits[f"{split}_texts"] = texts
             data_splits[f"{split}_labels"] = labels
 

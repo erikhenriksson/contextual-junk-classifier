@@ -66,6 +66,8 @@ class DocumentClassifier(nn.Module):
             batch_input_ids = input_ids[i : i + self.batch_size]
             batch_attention_mask = attention_mask[i : i + self.batch_size]
 
+            print(batch_input_ids.size())
+
             outputs = self.line_model(
                 input_ids=batch_input_ids, attention_mask=batch_attention_mask
             )
@@ -73,6 +75,7 @@ class DocumentClassifier(nn.Module):
                 :, 0, :
             ]  # [CLS] token embeddings
             all_embeddings.append(pooled_embeddings)
+            print("done!")
 
         return torch.cat(all_embeddings, dim=0)  # Shape: [num_lines, 768]
 
@@ -80,12 +83,12 @@ class DocumentClassifier(nn.Module):
 
         # Tokenize document lines
         encoded_inputs = self.tokenize_lines(document_lines)
-        print("a")
+
         # Extract embeddings from XLM-Roberta in batches
         embeddings = self.extract_line_embeddings(
             encoded_inputs
         )  # Shape: [num_lines, 768]
-        print("b")
+
         # Initialize a list to store logits from each batch
         all_logits = []
 

@@ -2,6 +2,7 @@ from transformers import XLMRobertaTokenizer, XLMRobertaModel
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from torch.optim.lr_scheduler import LambdaLR
 from sklearn.model_selection import train_test_split
 import hierarchical_preprocess
 from tqdm import tqdm
@@ -36,7 +37,7 @@ def calculate_class_weights(labels, num_classes, device):
 class DocumentClassifier(nn.Module):
     def __init__(self, num_labels):
         super(DocumentClassifier, self).__init__()
-        self.line_model = XLMRobertaModel.from_pretrained("xlm-roberta-base")
+        self.line_model = XLMRobertaModel.from_pretrained("xlm-roberta-large")
 
         # Transformer encoder with multiple layers
         encoder_layer = nn.TransformerEncoderLayer(d_model=768, nhead=8)
@@ -209,9 +210,6 @@ def evaluate_model(documents, labels, model, loss_fn):
     print(f"F1 Score (Weighted): {f1_weighted}")
 
     return avg_loss, accuracy, precision, recall, f1_weighted
-
-
-from torch.optim.lr_scheduler import LambdaLR
 
 
 def train_model(

@@ -111,6 +111,8 @@ class DocumentClassifier(nn.Module):
             all_logits, dim=0
         )  # Shape: [total_num_lines, num_labels]
 
+        print(len(all_logits))
+
         return all_logits
 
 

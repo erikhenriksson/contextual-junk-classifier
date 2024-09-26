@@ -34,7 +34,9 @@ def run(args):
     tokenizer = AutoTokenizer.from_pretrained(args.base_model)
 
     def tokenize(batch):
-        return tokenizer(batch["text"], padding=True, truncation=True, max_length=512)
+        return tokenizer(
+            batch["text"], padding="longest", truncation=True, max_length=512
+        )
 
     dataset = data.map(tokenize, batched=True)
 

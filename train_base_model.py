@@ -34,6 +34,8 @@ def compute_metrics(pred):
 
     # F1 Score
     f1 = f1_score(labels, preds, average="weighted")
+    f1_micro = f1_score(labels, preds, average="micro")
+    f1_macro = f1_score(labels, preds, average="macro")
 
     # Precision and Recall
     precision = precision_score(labels, preds, average="weighted")
@@ -42,6 +44,8 @@ def compute_metrics(pred):
     return {
         "accuracy": accuracy,
         "f1": f1,
+        "f1_macro": f1_macro,
+        "f2_micro": f1_micro,
         "precision": precision,
         "recall": recall,
         "confusion_matrix": conf_matrix,

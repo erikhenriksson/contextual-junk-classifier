@@ -56,7 +56,7 @@ def run(args):
         learning_rate=3e-5,
         eval_strategy="steps",
         eval_steps=500,
-        save_strategy="epoch",
+        save_strategy="steps",
         logging_dir=f"base_model/logs",
         logging_steps=100,
         save_total_limit=2,

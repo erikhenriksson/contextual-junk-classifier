@@ -28,9 +28,12 @@ def encode_labels(data, label_key, label_encoder=None):
 
 
 # Convert list of dicts to Hugging Face Dataset
-def create_hf_dataset(data):
+def create_hf_dataset(data, label_key):
     return Dataset.from_dict(
-        {key: [doc[key] for doc in data] for key in data[0].keys()}
+        {
+            key if key != label_key else "labels": [doc[key] for doc in data]
+            for key in data[0].keys()
+        }
     )
 
 
@@ -51,9 +54,9 @@ def get_data(multiclass):
     # Create DatasetDict with all splits
     dataset_dict = DatasetDict(
         {
-            "train": create_hf_dataset(train_data),
-            "test": create_hf_dataset(test_data),
-            "dev": create_hf_dataset(dev_data),
+            "train": create_hf_dataset(train_data, label_key),
+            "test": create_hf_dataset(test_data, label_key),
+            "dev": create_hf_dataset(dev_data, label_key),
         }
     )
     return dataset_dict, label_encoder

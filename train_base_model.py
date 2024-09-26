@@ -53,7 +53,9 @@ def run(args):
     # Define training arguments
     training_args = TrainingArguments(
         output_dir="base_model",
-        evaluation_strategy="epoch",
+        learning_rate=3e-5,
+        eval_strategy="steps",
+        eval_steps=500,
         save_strategy="epoch",
         logging_dir=f"base_model/logs",
         logging_steps=100,
@@ -61,9 +63,9 @@ def run(args):
         load_best_model_at_end=True,
         metric_for_best_model="f1",
         greater_is_better=True,
-        per_device_train_batch_size=8,
-        per_device_eval_batch_size=8,
-        num_train_epochs=10,
+        per_device_train_batch_size=16,
+        per_device_eval_batch_size=16,
+        num_train_epochs=5,
         seed=42,
     )
 

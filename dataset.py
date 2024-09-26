@@ -28,12 +28,14 @@ def encode_labels(data, label_key, label_encoder=None):
 
 
 # Convert list of dicts to Hugging Face Dataset
-def create_hf_dataset(data, label_key):
+def create_hf_dataset(doc_data, label_key):
+    data = []
+    # Split the "text" key by newlines and associate with same index of "label_key" list, and add to the dat
+    for doc in doc_data:
+        for i, line in enumerate(doc["text"].split("\n")):
+            data.append({"text": line, "label": doc[label_key][i]})
     return Dataset.from_dict(
-        {
-            key if key != label_key else "labels": [doc[key] for doc in data]
-            for key in data[0].keys()
-        }
+        {key: [doc[key] for doc in data] for key in data[0].keys()}
     )
 
 

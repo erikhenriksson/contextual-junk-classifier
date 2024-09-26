@@ -26,7 +26,9 @@ def compute_metrics(pred):
 # Main function to run the training process
 def run(args):
     # Load and preprocess data
-    data, label_encoder = get_data(args.multiclass)
+    data, label_encoder = get_data(
+        args.multiclass, downsample_clean=True, downsample_ratio=0.3
+    )
 
     num_labels = len(label_encoder.classes_)
 

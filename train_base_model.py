@@ -27,7 +27,7 @@ def compute_metrics(pred):
     preds = np.argmax(pred.predictions, axis=1)
 
     # Calculate confusion matrix (optional)
-    conf_matrix = confusion_matrix(labels, preds)
+    conf_matrix = confusion_matrix(labels, preds).tolist()
 
     # Accuracy
     accuracy = accuracy_score(labels, preds)

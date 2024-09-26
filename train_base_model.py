@@ -3,7 +3,14 @@ import os
 os.environ["HF_HOME"] = ".hf/hf_home"
 
 import numpy as np
-from sklearn.metrics import f1_score
+from sklearn.metrics import (
+    f1_score,
+    accuracy_score,
+    precision_score,
+    recall_score,
+    confusion_matrix,
+)
+
 from transformers import (
     EarlyStoppingCallback,
     Trainer,
@@ -15,12 +22,30 @@ from transformers import (
 from dataset import get_data
 
 
-# Function to compute weighted F1 score
 def compute_metrics(pred):
     labels = pred.label_ids
     preds = np.argmax(pred.predictions, axis=1)
+
+    # Calculate confusion matrix (optional)
+    conf_matrix = confusion_matrix(labels, preds)
+
+    # Accuracy
+    accuracy = accuracy_score(labels, preds)
+
+    # F1 Score
     f1 = f1_score(labels, preds, average="weighted")
-    return {"f1": f1}
+
+    # Precision and Recall
+    precision = precision_score(labels, preds, average="weighted")
+    recall = recall_score(labels, preds, average="weighted")
+
+    return {
+        "accuracy": accuracy,
+        "f1": f1,
+        "precision": precision,
+        "recall": recall,
+        "confusion_matrix": conf_matrix,
+    }
 
 
 # Main function to run the training process
@@ -29,6 +54,8 @@ def run(args):
     data, label_encoder = get_data(
         args.multiclass, downsample_clean=True, downsample_ratio=0.3
     )
+
+    suffix = "_multiclass" if args.multiclass else "_binary"
 
     num_labels = len(label_encoder.classes_)
 
@@ -52,12 +79,12 @@ def run(args):
 
     # Define training arguments
     training_args = TrainingArguments(
-        output_dir="base_model",
+        output_dir=f"base_model{suffix}",
         learning_rate=3e-5,
         eval_strategy="steps",
         eval_steps=500,
         save_strategy="steps",
-        logging_dir=f"base_model/logs",
+        logging_dir=f"base_model{suffix}/logs",
         logging_steps=100,
         save_total_limit=2,
         load_best_model_at_end=True,
@@ -91,4 +118,4 @@ def run(args):
     print(f"Test set evaluation results: {eval_result}")
 
     # Save the best model
-    trainer.save_model("base_model")
+    trainer.save_model(f"base_model{suffix}")

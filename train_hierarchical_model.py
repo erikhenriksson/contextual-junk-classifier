@@ -190,8 +190,7 @@ def train_model(
                     torch.tensor(label).to(device).unsqueeze(0)
                 )  # Shape: [1, num_lines]
 
-                print(label.shape)
-                exit()
+                print(document.shape, label.shape, logits.shape)
 
                 # Calculate loss
                 loss = loss_fn(logits.view(-1, num_labels), label.view(-1))

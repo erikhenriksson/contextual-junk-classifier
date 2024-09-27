@@ -2,6 +2,7 @@ import os
 
 os.environ["HF_HOME"] = ".hf/hf_home"
 
+import torch
 import numpy as np
 from sklearn.metrics import (
     f1_score,
@@ -12,6 +13,8 @@ from sklearn.metrics import (
     classification_report,
 )
 
+from sklearn.utils.class_weight import compute_class_weight
+
 from transformers import (
     EarlyStoppingCallback,
     Trainer,
@@ -21,6 +24,36 @@ from transformers import (
 )
 
 from linear_dataset import get_data
+
+import torch
+
+
+# Calculate class weights based on the training dataset
+def calculate_class_weights(labels, num_labels):
+    class_weights = compute_class_weight(
+        class_weight="balanced", classes=np.arange(num_labels), y=labels
+    )
+    return torch.tensor(class_weights, dtype=torch.float)
+
+
+class WeightedTrainer(Trainer):
+    def __init__(self, class_weights, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.class_weights = class_weights
+
+    def compute_loss(self, model, inputs, return_outputs=False):
+        labels = inputs.get("labels")
+        # Forward pass
+        outputs = model(**inputs)
+        logits = outputs.get("logits")
+
+        # Compute the weighted loss
+        loss_fct = torch.nn.CrossEntropyLoss(
+            weight=self.class_weights.to(logits.device)
+        )
+        loss = loss_fct(logits, labels)
+
+        return (loss, outputs) if return_outputs else loss
 
 
 # Pass label_encoder to use class names in the classification report
@@ -93,10 +126,14 @@ def run(args, just_predict=False):
         "xlm-roberta-base", num_labels=num_labels
     )
 
+    # Calculate class weights based on the training labels
+    train_labels = np.array(dataset["train"]["labels"])
+    class_weights = calculate_class_weights(train_labels, num_labels)
+
     # Define training arguments
     training_args = TrainingArguments(
         output_dir=f"base_model{suffix}",
-        learning_rate=3e-5,
+        learning_rate=3e-5,  # Adjust this if needed for scaling
         eval_strategy="steps",
         eval_steps=500,
         save_strategy="steps",
@@ -115,8 +152,8 @@ def run(args, just_predict=False):
     # Define early stopping callback
     early_stopping = EarlyStoppingCallback(early_stopping_patience=3)
 
-    # Initialize the Trainer
-    trainer = Trainer(
+    # Initialize the weighted trainer
+    trainer = WeightedTrainer(
         model=model,
         args=training_args,
         train_dataset=dataset["train"],
@@ -124,6 +161,7 @@ def run(args, just_predict=False):
         tokenizer=tokenizer,
         compute_metrics=lambda pred: compute_metrics(pred, label_encoder),
         callbacks=[early_stopping],
+        class_weights=class_weights,
     )
 
     # Train the model

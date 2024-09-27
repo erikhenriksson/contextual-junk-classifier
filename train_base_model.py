@@ -109,7 +109,7 @@ def run(args):
     suffix = "_multiclass" if args.multiclass else "_binary"
     class_weights = "_class_weights" if args.use_class_weights else ""
     saved_model_name = (
-        f"base_model{suffix}_clean_ratio_{args.downsample_ratio}{class_weights}"
+        f"base_model{suffix}_clean_ratio_{args.downsample_clean_ratio}{class_weights}"
     )
 
     num_labels = len(label_encoder.classes_)

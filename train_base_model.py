@@ -127,7 +127,7 @@ def run(args, just_predict=False):
     )
 
     # Calculate class weights based on the training labels
-    train_labels = np.array(dataset["train"]["labels"])
+    train_labels = np.array(dataset["train"]["label"])
     class_weights = calculate_class_weights(train_labels, num_labels)
 
     # Define training arguments

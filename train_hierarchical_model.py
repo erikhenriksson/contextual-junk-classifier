@@ -161,7 +161,7 @@ def train_model(
     epochs=15,
     patience=5,
     lr_scheduler_ratio=0.95,
-    evaluation_steps=100,
+    evaluation_steps=500,
 ):
     # Initialize early stopping parameters
     best_val_loss = float("inf")

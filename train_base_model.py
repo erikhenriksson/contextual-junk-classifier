@@ -101,7 +101,9 @@ def compute_metrics(pred, label_encoder):
 def run(args):
     # Load and preprocess data
     data, label_encoder = get_data(
-        args.multiclass, downsample_clean=True, downsample_ratio=0.1
+        args.multiclass,
+        downsample_clean=args.downsample_clean_ratio < 1.0,
+        downsample_ratio=args.downsample_clean_ratio,
     )
 
     suffix = "_multiclass" if args.multiclass else "_binary"

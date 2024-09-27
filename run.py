@@ -11,6 +11,7 @@ parser.add_argument(
 )
 parser.add_argument("--train", action="store_true")
 parser.add_argument("--base_model", type=str, default="xlm-roberta-base")
+parser.add_argument("--downsample_clean_ratio", type=float, default=0.1)
 args = parser.parse_args()
 
 # Print the arguments in JSON format

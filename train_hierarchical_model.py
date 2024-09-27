@@ -19,9 +19,14 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Define a combined model
 class DocumentClassifier(nn.Module):
-    def __init__(self, num_labels, base_model="base_model"):
+    def __init__(self, num_labels, base_model="base_model", freeze_base_model=True):
         super(DocumentClassifier, self).__init__()
         self.line_model = AutoModel.from_pretrained(base_model)
+
+        # Optionally freeze the base model
+        if freeze_base_model:
+            for param in self.line_model.parameters():
+                param.requires_grad = False
 
         # Transformer encoder with multiple layers
         encoder_layer = nn.TransformerEncoderLayer(d_model=768, nhead=8)

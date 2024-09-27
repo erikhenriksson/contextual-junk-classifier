@@ -93,9 +93,9 @@ binary_labels = np.array(binary_labels)
 X = np.array(data)
 
 
-# Step 1: Perform 70/30 split using IterativeStratification
+# Step 1: Perform 80/20 split using IterativeStratification
 stratifier = IterativeStratification(
-    n_splits=2, order=1, sample_distribution_per_fold=[0.7, 0.3]
+    n_splits=2, order=1, sample_distribution_per_fold=[0.8, 0.2]
 )
 
 remaining_indices, train_indices = next(stratifier.split(X, binary_labels))
@@ -103,9 +103,9 @@ remaining_indices, train_indices = next(stratifier.split(X, binary_labels))
 X_train, X_remaining = X[train_indices], X[remaining_indices]
 y_train, y_remaining = binary_labels[train_indices], binary_labels[remaining_indices]
 
-# Step 2: Split the remaining 30% into test (20%) and dev (10%)
+# Step 2: Split the remaining 20% into test (10%) and dev (10%)
 stratifier_remaining = IterativeStratification(
-    n_splits=2, order=1, sample_distribution_per_fold=[2 / 3, 1 / 3]
+    n_splits=2, order=1, sample_distribution_per_fold=[0.5, 0.5]
 )
 
 dev_indices, test_indices = next(stratifier_remaining.split(X_remaining, y_remaining))

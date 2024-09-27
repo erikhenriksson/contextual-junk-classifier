@@ -2,6 +2,7 @@ import json
 import numpy as np
 from sklearn.preprocessing import LabelEncoder
 from datasets import Dataset, DatasetDict
+from collections import Counter
 
 
 # Load JSONL data from file
@@ -74,6 +75,17 @@ def downsample_clean_class(dataset, clean_label_index, downsample_ratio=0.1):
     return Dataset.from_dict(downsampled_data)
 
 
+# Function to print class distribution
+def print_class_distribution(dataset, split_name, label_encoder):
+    labels = dataset["label"]
+    label_counts = Counter(labels)
+    print(f"Class distribution for {split_name}:")
+    for label_index, count in label_counts.items():
+        label_name = label_encoder.inverse_transform([label_index])[0]
+        print(f"  {label_name}: {count} examples")
+    print()
+
+
 # Main function to load and preprocess the data
 def get_data(multiclass, downsample_clean=False, downsample_ratio=0.1):
 
@@ -106,5 +118,10 @@ def get_data(multiclass, downsample_clean=False, downsample_ratio=0.1):
         dataset_dict["train"] = downsample_clean_class(
             dataset_dict["train"], clean_label_index, downsample_ratio
         )
+
+    # Print class distribution for each split
+    print_class_distribution(dataset_dict["train"], "train", label_encoder)
+    print_class_distribution(dataset_dict["test"], "test", label_encoder)
+    print_class_distribution(dataset_dict["dev"], "dev", label_encoder)
 
     return dataset_dict, label_encoder

@@ -271,17 +271,18 @@ def run(args, just_predict=False):
     optimizer = AdamW(model.parameters(), lr=5e-6, weight_decay=0.01)
     loss_fn = nn.CrossEntropyLoss()
 
-    # Train the model and evaluate on validation set
-    train_model(
-        data["train"]["texts"],
-        data["train"]["labels"],
-        data["dev"]["texts"],
-        data["dev"]["labels"],
-        num_labels,
-        model,
-        optimizer,
-        loss_fn,
-    )
+    if args.train:
+
+        train_model(
+            data["train"]["texts"],
+            data["train"]["labels"],
+            data["dev"]["texts"],
+            data["dev"]["labels"],
+            num_labels,
+            model,
+            optimizer,
+            loss_fn,
+        )
 
     # Evaluate the model on the test set
     test_loss, test_accuracy, _, _, _ = evaluate_model(

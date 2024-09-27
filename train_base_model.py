@@ -98,13 +98,14 @@ def compute_metrics(pred, label_encoder):
 
 
 # Main function to run the training process
-def run(args, just_predict=False):
+def run(args):
     # Load and preprocess data
     data, label_encoder = get_data(
-        args.multiclass, downsample_clean=True, downsample_ratio=0.3
+        args.multiclass, downsample_clean=True, downsample_ratio=0.1
     )
 
     suffix = "_multiclass" if args.multiclass else "_binary"
+    saved_model_name = f"base_model{suffix}"
 
     num_labels = len(label_encoder.classes_)
 
@@ -123,7 +124,7 @@ def run(args, just_predict=False):
 
     # Load XLM-Roberta model for sequence classification
     model = AutoModelForSequenceClassification.from_pretrained(
-        "xlm-roberta-base", num_labels=num_labels
+        "xlm-roberta-base" if args.train else saved_model_name, num_labels=num_labels
     )
 
     # Calculate class weights based on the training labels
@@ -132,12 +133,12 @@ def run(args, just_predict=False):
 
     # Define training arguments
     training_args = TrainingArguments(
-        output_dir=f"base_model{suffix}",
+        output_dir=saved_model_name,
         learning_rate=3e-5,  # Adjust this if needed for scaling
         eval_strategy="steps",
         eval_steps=500,
         save_strategy="steps",
-        logging_dir=f"base_model{suffix}/logs",
+        logging_dir=f"{saved_model_name}/logs",
         logging_steps=100,
         save_total_limit=2,
         load_best_model_at_end=True,
@@ -164,12 +165,12 @@ def run(args, just_predict=False):
         class_weights=class_weights,
     )
 
-    # Train the model
-    trainer.train()
+    if args.train:
+        trainer.train()
 
     # Evaluate the model on the test set
     eval_result = trainer.evaluate(eval_dataset=dataset["test"])
     print(f"Test set evaluation results: {eval_result}")
 
     # Save the best model
-    trainer.save_model(f"base_model{suffix}")
+    trainer.save_model(saved_model_name)

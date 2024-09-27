@@ -104,22 +104,29 @@ def evaluate_model(documents, labels, num_labels, model, loss_fn):
     y_pred = []
 
     with torch.no_grad():  # Disable gradient calculation
-        for document, label in zip(documents, labels):
-            logits = model(document)
-            label = torch.tensor(label).to(device).unsqueeze(0)  # Shape: [1, num_lines]
+        # Add a progress bar to the evaluation loop
+        with tqdm(total=len(documents), desc="Evaluating") as pbar:
+            for document, label in zip(documents, labels):
+                logits = model(document)
+                label = (
+                    torch.tensor(label).to(device).unsqueeze(0)
+                )  # Shape: [1, num_lines]
 
-            # Calculate loss
-            loss = loss_fn(logits.view(-1, num_labels), label.view(-1))
-            total_loss += loss.item()
+                # Calculate loss
+                loss = loss_fn(logits.view(-1, num_labels), label.view(-1))
+                total_loss += loss.item()
 
-            # Get the predicted class indices
-            predicted_labels = torch.argmax(logits, dim=-1).view(
-                -1
-            )  # Shape: [num_lines]
+                # Get the predicted class indices
+                predicted_labels = torch.argmax(logits, dim=-1).view(
+                    -1
+                )  # Shape: [num_lines]
 
-            # Append true and predicted labels for metrics calculation
-            y_true.extend(label.view(-1).tolist())
-            y_pred.extend(predicted_labels.tolist())
+                # Append true and predicted labels for metrics calculation
+                y_true.extend(label.view(-1).tolist())
+                y_pred.extend(predicted_labels.tolist())
+
+                # Update progress bar
+                pbar.update(1)
 
     avg_loss = total_loss / len(documents)
 

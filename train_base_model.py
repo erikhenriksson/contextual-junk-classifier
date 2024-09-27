@@ -155,17 +155,27 @@ def run(args):
     # Define early stopping callback
     early_stopping = EarlyStoppingCallback(early_stopping_patience=3)
 
-    # Initialize the weighted trainer
-    trainer = WeightedTrainer(
-        model=model,
-        args=training_args,
-        train_dataset=dataset["train"],
-        eval_dataset=dataset["dev"],
-        tokenizer=tokenizer,
-        compute_metrics=lambda pred: compute_metrics(pred, label_encoder),
-        callbacks=[early_stopping],
-        class_weights=class_weights,
-    )
+    if args.use_class_weights:
+        trainer = WeightedTrainer(
+            model=model,
+            args=training_args,
+            train_dataset=dataset["train"],
+            eval_dataset=dataset["dev"],
+            tokenizer=tokenizer,
+            compute_metrics=lambda pred: compute_metrics(pred, label_encoder),
+            callbacks=[early_stopping],
+            class_weights=class_weights,
+        )
+    else:
+        trainer = Trainer(
+            model=model,
+            args=training_args,
+            train_dataset=dataset["train"],
+            eval_dataset=dataset["dev"],
+            tokenizer=tokenizer,
+            compute_metrics=lambda pred: compute_metrics(pred, label_encoder),
+            callbacks=[early_stopping],
+        )
 
     if args.train:
         trainer.train()

@@ -29,7 +29,7 @@ def encode_labels(doc_data, label_key, label_encoder=None):
     for doc in doc_data:
         doc[label_key] = label_encoder.transform(doc[label_key]).tolist()
         data["labels"].append(doc[label_key])
-        data["texts"].append(doc["text"])
+        data["texts"].append(doc["text"].split("\n"))
     return data, label_encoder
 
 

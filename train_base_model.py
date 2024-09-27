@@ -124,6 +124,9 @@ def run(args):
 
     dataset = data.map(tokenize, batched=True)
 
+    # Shuffle the train split
+    dataset["train"] = dataset["train"].shuffle(seed=42)
+
     print("Example of a tokenized input:")
     print(dataset["train"][0])
 

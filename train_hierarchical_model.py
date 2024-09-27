@@ -1,5 +1,3 @@
-import os
-import json
 from transformers import AutoTokenizer, AutoModel
 import torch
 import torch.nn as nn
@@ -21,9 +19,9 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Define a combined model
 class DocumentClassifier(nn.Module):
-    def __init__(self, num_labels, base_model="xlm-roberta-base"):
+    def __init__(self, num_labels, base_model="base_model"):
         super(DocumentClassifier, self).__init__()
-        self.line_model = AutoModel.from_pretrained("base_model")
+        self.line_model = AutoModel.from_pretrained(self.base_model)
 
         # Transformer encoder with multiple layers
         encoder_layer = nn.TransformerEncoderLayer(d_model=768, nhead=8)
@@ -254,7 +252,9 @@ def run(args, just_predict=False):
 
     num_labels = len(label_encoder.classes_)
 
-    model = DocumentClassifier(num_labels=num_labels).to(device)
+    model = DocumentClassifier(
+        num_labels=num_labels, base_model=f"base_model{suffix}"
+    ).to(device)
 
     optimizer = AdamW(model.parameters(), lr=5e-6, weight_decay=0.01)
     loss_fn = nn.CrossEntropyLoss()

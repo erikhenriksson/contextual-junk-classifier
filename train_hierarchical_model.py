@@ -182,6 +182,8 @@ def train_model(
             for document, label in zip(train_docs, train_labels):
                 optimizer.zero_grad()  # Reset gradients
 
+                print(document)
+
                 # Forward pass
                 logits = model(document)  # Shape: [1, num_lines, num_labels]
 
@@ -189,8 +191,6 @@ def train_model(
                 label = (
                     torch.tensor(label).to(device).unsqueeze(0)
                 )  # Shape: [1, num_lines]
-
-                print(document.shape, label.shape, logits.shape)
 
                 # Calculate loss
                 loss = loss_fn(logits.view(-1, num_labels), label.view(-1))

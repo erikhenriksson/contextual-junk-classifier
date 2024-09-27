@@ -9,6 +9,7 @@ from sklearn.metrics import (
     precision_score,
     recall_score,
     confusion_matrix,
+    classification_report,
 )
 
 from transformers import (
@@ -19,10 +20,11 @@ from transformers import (
     AutoModelForSequenceClassification,
 )
 
-from dataset import get_data
+from linear_dataset import get_data
 
 
-def compute_metrics(pred):
+# Pass label_encoder to use class names in the classification report
+def compute_metrics(pred, label_encoder):
     labels = pred.label_ids
     preds = np.argmax(pred.predictions, axis=1)
 
@@ -41,11 +43,21 @@ def compute_metrics(pred):
     precision = precision_score(labels, preds, average="weighted")
     recall = recall_score(labels, preds, average="weighted")
 
+    # Use label_encoder to get class names
+    class_names = label_encoder.classes_
+
+    # Generate the classification report using class names
+    class_report = classification_report(labels, preds, target_names=class_names)
+
+    # Print the classification report
+    print("Classification Report:\n", class_report)
+
+    # Return metrics
     return {
         "accuracy": accuracy,
         "f1": f1,
         "f1_macro": f1_macro,
-        "f2_micro": f1_micro,
+        "f1_micro": f1_micro,  # Fixed typo here from "f2_micro"
         "precision": precision,
         "recall": recall,
         "confusion_matrix": conf_matrix,
@@ -53,7 +65,7 @@ def compute_metrics(pred):
 
 
 # Main function to run the training process
-def run(args):
+def run(args, just_predict=False):
     # Load and preprocess data
     data, label_encoder = get_data(
         args.multiclass, downsample_clean=True, downsample_ratio=0.3
@@ -110,7 +122,7 @@ def run(args):
         train_dataset=dataset["train"],
         eval_dataset=dataset["dev"],
         tokenizer=tokenizer,
-        compute_metrics=compute_metrics,
+        compute_metrics=lambda pred: compute_metrics(pred, label_encoder),
         callbacks=[early_stopping],
     )
 

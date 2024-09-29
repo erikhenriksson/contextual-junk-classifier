@@ -8,7 +8,13 @@ from collections import Counter
 # Load JSONL data from file
 def load_jsonl(filename, label_key, multiclass):
     def convert(line):
-        labels = line[label_key]
+        labels = line[
+            (
+                label_key
+                if "llm_junk_annotations_fixed" not in key
+                else "llm_junk_annotations_fixed"
+            )
+        ]
         if not multiclass:
             labels = [x if x == "clean" else "junk" for x in labels]
 
@@ -22,17 +28,7 @@ def load_jsonl(filename, label_key, multiclass):
 # Encode labels using LabelEncoder
 def encode_labels(data, label_key, label_encoder=None):
 
-    all_labels = [
-        label
-        for doc in data
-        for label in doc[
-            (
-                label_key
-                if "llm_junk_annotations_fixed" not in doc
-                else "llm_junk_annotations_fixed"
-            )
-        ]
-    ]
+    all_labels = [label for doc in data for label in doc[label_key]]
     if label_encoder is None:
         label_encoder = LabelEncoder().fit(all_labels)
     for doc in data:

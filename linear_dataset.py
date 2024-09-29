@@ -11,7 +11,7 @@ def load_jsonl(filename, label_key, multiclass):
         labels = line[
             (
                 label_key
-                if "llm_junk_annotations_fixed" not in key
+                if "llm_junk_annotations_fixed" not in line
                 else "llm_junk_annotations_fixed"
             )
         ]

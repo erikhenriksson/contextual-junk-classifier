@@ -1,13 +1,16 @@
-from transformers import AutoTokenizer, AutoModel
+from transformers import AutoTokenizer, AutoModel, AutoConfig, PretrainedConfig
+
 import torch
 import torch.nn as nn
 from torch.optim.lr_scheduler import LambdaLR
 from tqdm import tqdm
 from sklearn.metrics import (
-    classification_report,
-    precision_recall_fscore_support,
-    accuracy_score,
     f1_score,
+    accuracy_score,
+    precision_score,
+    recall_score,
+    confusion_matrix,
+    classification_report,
 )
 
 from torch.optim import AdamW
@@ -19,10 +22,18 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Define a combined model
 class DocumentClassifier(nn.Module):
-    def __init__(self, num_labels, base_model="base_model", freeze_base_model=True):
+    def __init__(
+        self,
+        num_labels,
+        base_model,
+        saved_base_model,
+        label_encoder,
+        freeze_base_model=True,
+    ):
         super(DocumentClassifier, self).__init__()
-        self.line_model = AutoModel.from_pretrained(base_model)
-
+        self.line_model = AutoModel.from_pretrained(saved_base_model)
+        self.label_encoder = label_encoder
+        self.base_model = base_model
         # Optionally freeze the base model
         if freeze_base_model:
             for param in self.line_model.parameters():
@@ -45,11 +56,6 @@ class DocumentClassifier(nn.Module):
         self.tokenizer = AutoTokenizer.from_pretrained(base_model)
 
     def forward(self, document_lines):
-        """
-        Forward pass for the document classifier:
-        - Tokenize, extract embeddings, pass through transformer and final classifier.
-        """
-
         all_logits = []  # Store logits from all batches
 
         # Process document lines in batches of size self.batch_size
@@ -100,18 +106,70 @@ class DocumentClassifier(nn.Module):
 
         return all_logits
 
+    def save_pretrained(self, save_directory):
+        if not os.path.exists(save_directory):
+            os.makedirs(save_directory)
+
+        # Save model weights
+        model_weights_path = os.path.join(save_directory, "pytorch_model.bin")
+        torch.save(self.state_dict(), model_weights_path)
+
+        # Use label_encoder to generate label2id and id2label mappings
+        label2id = {label: idx for idx, label in enumerate(self.label_encoder.classes_)}
+        id2label = {idx: label for idx, label in enumerate(self.label_encoder.classes_)}
+
+        # Prepare and save config
+        config = PretrainedConfig(
+            num_labels=self.num_labels,
+            base_model=self.base_model,
+            label2id=label2id,
+            id2label=id2label,
+        )
+        config.save_pretrained(save_directory)
+
+        # Save tokenizer
+        self.tokenizer.save_pretrained(save_directory)
+
+        print(f"Model, config, and tokenizer saved to {save_directory}")
+
+    @classmethod
+    def from_pretrained(cls, load_directory):
+
+        # Load config
+        config = AutoConfig.from_pretrained(load_directory)
+
+        # Initialize model using the loaded config
+        model = cls(
+            num_labels=config.num_labels,
+            base_model=config.base_model,
+            freeze_base_model=False,  # Set to False, customize if needed
+        )
+
+        # Load model weights onto the specified device
+        model_weights_path = os.path.join(load_directory, "pytorch_model.bin")
+        model.load_state_dict(torch.load(model_weights_path, map_location=device))
+
+        # Move model to the specified device
+        model = model.to(device)
+
+        # Load tokenizer
+        model.tokenizer = AutoTokenizer.from_pretrained(load_directory)
+
+        print(f"Model and tokenizer loaded from {load_directory} onto {device}")
+        return model
+
 
 # Function to evaluate model on a given dataset
-def evaluate_model(documents, labels, num_labels, model, loss_fn):
+def evaluate_model(documents, doc_labels, num_labels, model, loss_fn, label_encoder):
     model.eval()  # Set model to evaluation mode
     total_loss = 0
-    y_true = []
-    y_pred = []
+    labels = []
+    preds = []
 
     with torch.no_grad():  # Disable gradient calculation
         # Add a progress bar to the evaluation loop
         with tqdm(total=len(documents), desc="Evaluating") as pbar:
-            for document, label in zip(documents, labels):
+            for document, label in zip(documents, doc_labels):
                 logits = model(document)
                 label = (
                     torch.tensor(label).to(device).unsqueeze(0)
@@ -127,31 +185,51 @@ def evaluate_model(documents, labels, num_labels, model, loss_fn):
                 )  # Shape: [num_lines]
 
                 # Append true and predicted labels for metrics calculation
-                y_true.extend(label.view(-1).tolist())
-                y_pred.extend(predicted_labels.tolist())
+                labels.extend(label.view(-1).tolist())
+                preds.extend(predicted_labels.tolist())
 
                 # Update progress bar
                 pbar.update(1)
 
     avg_loss = total_loss / len(documents)
 
-    # Calculate accuracy, precision, recall, F1 score, and other metrics
-    accuracy = accuracy_score(y_true, y_pred)
-    precision, recall, f1, _ = precision_recall_fscore_support(
-        y_true, y_pred, average="weighted"
-    )
-    f1_weighted = f1_score(y_true, y_pred, average="weighted")
+    # Calculate confusion matrix (optional)
+    conf_matrix = confusion_matrix(labels, preds).tolist()
 
-    # Generate classification report
-    class_report = classification_report(y_true, y_pred)
+    # Accuracy
+    accuracy = accuracy_score(labels, preds)
 
-    print("\nClassification Report:\n", class_report)
-    print(f"Accuracy: {accuracy}")
-    print(f"Precision (Weighted): {precision}")
-    print(f"Recall (Weighted): {recall}")
-    print(f"F1 Score (Weighted): {f1_weighted}")
+    # F1 Score
+    f1 = f1_score(labels, preds, average="weighted")
+    f1_micro = f1_score(labels, preds, average="micro")
+    f1_macro = f1_score(labels, preds, average="macro")
 
-    return avg_loss, accuracy, precision, recall, f1_weighted
+    # Precision and Recall
+    precision = precision_score(labels, preds, average="weighted")
+    recall = recall_score(labels, preds, average="weighted")
+
+    # Use label_encoder to get class names
+    class_names = label_encoder.classes_
+
+    # Generate the classification report using class names
+    class_report = classification_report(labels, preds, target_names=class_names)
+
+    # Print the classification report
+    print("Classification Report:\n", class_report)
+
+    # Return metrics
+    return avg_loss, {
+        "accuracy": accuracy,
+        "f1": f1,
+        "f1_macro": f1_macro,
+        "f1_micro": f1_micro,
+        "precision": precision,
+        "recall": recall,
+        "confusion_matrix": conf_matrix,
+    }
+
+
+import os
 
 
 def train_model(
@@ -161,8 +239,11 @@ def train_model(
     val_labels,
     num_labels,
     model,
+    base_model_name,
+    model_save_path,
     optimizer,
     loss_fn,
+    label_encoder,
     epochs=15,
     patience=5,
     lr_scheduler_ratio=0.95,
@@ -222,18 +303,24 @@ def train_model(
 
                 # Evaluate and check for early stopping at every `evaluation_steps`
                 if global_step % evaluation_steps == 0:
-                    model.eval()  # Switch to evaluation mode
-                    val_loss, val_accuracy, _, _, _ = evaluate_model(
-                        val_docs, val_labels, num_labels, model, loss_fn
+                    val_loss, metrics = evaluate_model(
+                        val_docs, val_labels, num_labels, model, loss_fn, label_encoder
                     )
-                    print(
-                        f"Step {global_step}: Val Loss = {val_loss}, Val Accuracy = {val_accuracy}"
-                    )
+                    print("Dev Loss:", val_loss)
+                    print("Dev Metrics:", metrics)
 
                     # Early stopping check
                     if val_loss < best_val_loss:
                         best_val_loss = val_loss
                         epochs_no_improve = 0
+                        # Save the best model using Hugging Face's method
+                        save_model_for_huggingface(
+                            model,
+                            model.tokenizer,
+                            model_save_path,
+                            label_encoder,
+                        )
+                        print(f"Best model saved at step {global_step}")
                     else:
                         epochs_no_improve += 1
 
@@ -253,26 +340,42 @@ def train_model(
         if early_stop:
             break
 
+    # Load the best model after training ends using Hugging Face's method
+    if os.path.exists(model_save_path):
+        print(f"Loading best model from {model_save_path}")
+        model = AutoModel.from_pretrained(model_save_path).to(device)
+        model.tokenizer = AutoTokenizer.from_pretrained(model_save_path)
+    else:
+        print("No best model found. Using the last model from training.")
+
 
 # Main function to run the training process
-def run(args, just_predict=False):
+def run(args):
 
     # Load and preprocess data
     data, label_encoder = get_data(args.multiclass)
 
     suffix = "_multiclass" if args.multiclass else "_binary"
+    class_weights = "_class_weights" if args.use_class_weights else ""
+    saved_model_name = (
+        f"base_model{suffix}_clean_ratio_{args.downsample_clean_ratio}{class_weights}"
+    )
+    model_save_path = saved_model_name + "_hierarchical"
 
     num_labels = len(label_encoder.classes_)
 
-    model = DocumentClassifier(
-        num_labels=num_labels, base_model=f"base_model{suffix}"
-    ).to(device)
-
-    optimizer = AdamW(model.parameters(), lr=5e-6, weight_decay=0.01)
-    loss_fn = nn.CrossEntropyLoss()
-
     if args.train:
+        # Initialize model for training
+        model = DocumentClassifier(
+            num_labels=num_labels,
+            base_model=args.base_model,
+            finetuned_base_model=saved_model_name,
+            label_encoder=label_encoder,
+        ).to(device)
+        optimizer = AdamW(model.parameters(), lr=3e-5, weight_decay=0.01)
+        loss_fn = nn.CrossEntropyLoss()
 
+        # Train the model and save it
         train_model(
             data["train"]["texts"],
             data["train"]["labels"],
@@ -280,12 +383,29 @@ def run(args, just_predict=False):
             data["dev"]["labels"],
             num_labels,
             model,
+            args.base_model,
+            model_save_path,
             optimizer,
             loss_fn,
+            label_encoder,
         )
 
+    model = DocumentClassifier.from_pretrained(model_save_path).to(device)
+
+    print("Evaluating on test set...")
+
+    # Loss function for evaluation
+    loss_fn = nn.CrossEntropyLoss()
+
     # Evaluate the model on the test set
-    test_loss, test_accuracy, _, _, _ = evaluate_model(
-        data["test"]["texts"], data["test"]["labels"], num_labels, model, loss_fn
+    test_loss, metrics = evaluate_model(
+        data["test"]["texts"],
+        data["test"]["labels"],
+        num_labels,
+        model,
+        loss_fn,
+        label_encoder,
     )
-    print(f"Test Loss: {test_loss}, Test Accuracy: {test_accuracy}")
+
+    print("Test Loss:", test_loss)
+    print("Test Metrics:", metrics)

@@ -90,7 +90,7 @@ def compute_metrics(pred, label_encoder):
         "accuracy": accuracy,
         "f1": f1,
         "f1_macro": f1_macro,
-        "f1_micro": f1_micro,  # Fixed typo here from "f2_micro"
+        "f1_micro": f1_micro,
         "precision": precision,
         "recall": recall,
         "confusion_matrix": conf_matrix,

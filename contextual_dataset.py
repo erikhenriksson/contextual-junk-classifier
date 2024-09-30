@@ -7,7 +7,16 @@ from datasets import Dataset, DatasetDict
 # Load JSONL data from file
 def load_jsonl(filename, label_key, multiclass):
     def convert(line):
-        labels = line[label_key]
+        labels = line[
+            (
+                label_key
+                if "llm_junk_annotations_fixed" not in line
+                else "llm_junk_annotations_fixed"
+            )
+        ]
+        for i, label in enumerate(labels):
+            if label in ["noise", "other junk", "code"]:
+                labels[i] = "other junk"
         if not multiclass:
             labels = [x if x == "clean" else "junk" for x in labels]
 
@@ -27,22 +36,23 @@ def encode_labels(doc_data, label_key, label_encoder=None):
     if label_encoder is None:
         label_encoder = LabelEncoder().fit(all_labels)
     for doc in doc_data:
-        doc[label_key] = label_encoder.transform(doc[label_key]).tolist()
-        data["labels"].append(doc[label_key])
-        data["texts"].append(doc["text"].split("\n"))
+        labels = label_encoder.transform(doc[label_key]).tolist()
+        lines = doc["text"].split("\n")
+        # Ensure that there is always a labels for line. If not, append with "clean"
+        if len(labels) < len(lines):
+            labels.extend(
+                [label_encoder.transform(["clean"])[0]] * (len(lines) - len(labels))
+            )
+        # If there are too many labels, truncate the list
+        elif len(labels) > len(lines):
+            labels = labels[: len(lines)]
+        data["labels"].append(labels)
+        data["texts"].append(lines)
     return data, label_encoder
 
 
-# Convert list of dicts to Hugging Face Dataset
-def create_hf_dataset(data):
-
-    return Dataset.from_dict(
-        {key: [doc[key] for doc in data] for key in data[0].keys()}
-    )
-
-
 # Main function to load and preprocess the data
-def get_data(multiclass, downsample_clean=False, downsample_ratio=0.1):
+def get_data(multiclass):
 
     label_key = "llm_junk_annotations"
 

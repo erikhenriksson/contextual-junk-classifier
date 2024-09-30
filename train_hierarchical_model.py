@@ -239,11 +239,10 @@ def train_model(
     val_labels,
     num_labels,
     model,
-    base_model_name,
+    base_model,
     model_save_path,
     optimizer,
     loss_fn,
-    label_encoder,
     epochs=15,
     patience=5,
     lr_scheduler_ratio=0.95,
@@ -304,7 +303,12 @@ def train_model(
                 # Evaluate and check for early stopping at every `evaluation_steps`
                 if global_step % evaluation_steps == 0:
                     val_loss, metrics = evaluate_model(
-                        val_docs, val_labels, num_labels, model, loss_fn, label_encoder
+                        val_docs,
+                        val_labels,
+                        num_labels,
+                        model,
+                        loss_fn,
+                        model.label_encoder,
                     )
                     print("Dev Loss:", val_loss)
                     print("Dev Metrics:", metrics)
@@ -313,12 +317,10 @@ def train_model(
                     if val_loss < best_val_loss:
                         best_val_loss = val_loss
                         epochs_no_improve = 0
-                        # Save the best model using Hugging Face's method
-                        save_model_for_huggingface(
+
+                        model.save_pretrained(
                             model,
-                            model.tokenizer,
                             model_save_path,
-                            label_encoder,
                         )
                         print(f"Best model saved at step {global_step}")
                     else:
@@ -340,14 +342,6 @@ def train_model(
         if early_stop:
             break
 
-    # Load the best model after training ends using Hugging Face's method
-    if os.path.exists(model_save_path):
-        print(f"Loading best model from {model_save_path}")
-        model = AutoModel.from_pretrained(model_save_path).to(device)
-        model.tokenizer = AutoTokenizer.from_pretrained(model_save_path)
-    else:
-        print("No best model found. Using the last model from training.")
-
 
 # Main function to run the training process
 def run(args):
@@ -357,10 +351,10 @@ def run(args):
 
     suffix = "_multiclass" if args.multiclass else "_binary"
     class_weights = "_class_weights" if args.use_class_weights else ""
-    saved_model_name = (
+    finetuned_base_model = (
         f"base_model{suffix}_clean_ratio_{args.downsample_clean_ratio}{class_weights}"
     )
-    model_save_path = saved_model_name + "_hierarchical"
+    model_save_path = finetuned_base_model + "_hierarchical"
 
     num_labels = len(label_encoder.classes_)
 
@@ -369,7 +363,7 @@ def run(args):
         model = DocumentClassifier(
             num_labels=num_labels,
             base_model=args.base_model,
-            finetuned_base_model=saved_model_name,
+            finetuned_base_model=finetuned_base_model,
             label_encoder=label_encoder,
         ).to(device)
         optimizer = AdamW(model.parameters(), lr=3e-5, weight_decay=0.01)
@@ -387,7 +381,6 @@ def run(args):
             model_save_path,
             optimizer,
             loss_fn,
-            label_encoder,
         )
 
     model = DocumentClassifier.from_pretrained(model_save_path).to(device)
@@ -404,7 +397,7 @@ def run(args):
         num_labels,
         model,
         loss_fn,
-        label_encoder,
+        model.label_encoder,
     )
 
     print("Test Loss:", test_loss)

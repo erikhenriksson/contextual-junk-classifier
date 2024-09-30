@@ -120,7 +120,7 @@ class DocumentClassifier(nn.Module):
 
         # Prepare and save config
         config = PretrainedConfig(
-            num_labels=self.num_labels,
+            num_labels=len(self.label_encoder.classes_),
             base_model=self.base_model,
             label2id=label2id,
             id2label=id2label,
@@ -239,7 +239,6 @@ def train_model(
     val_labels,
     num_labels,
     model,
-    base_model,
     model_save_path,
     optimizer,
     loss_fn,
@@ -376,7 +375,6 @@ def run(args):
             data["dev"]["labels"],
             num_labels,
             model,
-            args.base_model,
             model_save_path,
             optimizer,
             loss_fn,

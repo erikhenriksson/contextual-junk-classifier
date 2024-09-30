@@ -60,9 +60,9 @@ def calculate_clean_vs_other_ratio(dataset_dict, split_name, clean_label_index):
 
     # Iterate over all documents in the split
     for doc_labels in labels:
-        for label_list in doc_labels:
-            total_count += len(label_list)
-            clean_count += sum(1 for label in label_list if label == clean_label_index)
+        # Count the number of clean labels in the document
+        total_count += len(doc_labels)
+        clean_count += sum(1 for label in doc_labels if label == clean_label_index)
 
     other_count = total_count - clean_count
     clean_ratio = clean_count / total_count if total_count > 0 else 0
@@ -86,9 +86,8 @@ def downsample_clean_documents_proportionally(
 
     # Calculate the proportion of "clean" labels in each document
     for doc_texts, doc_labels in zip(texts, labels):
-        clean_count = sum(
-            1 for label_list in doc_labels if clean_label_index in label_list
-        )
+        # Corrected: Now directly iterating over the flat list of labels
+        clean_count = sum(1 for label in doc_labels if label == clean_label_index)
         total_count = len(doc_labels)
 
         # Store the proportion of clean labels for this document

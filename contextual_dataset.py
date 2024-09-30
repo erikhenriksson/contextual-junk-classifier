@@ -70,8 +70,8 @@ def calculate_clean_vs_other_ratio(dataset_dict, split_name, clean_label_index):
     return clean_count, other_count, clean_ratio
 
 
-# Function to downsample clean documents proportionally
-def downsample_clean_documents_proportionally(
+# Function to downsample documents with 100% clean labels
+def downsample_documents_with_all_clean_labels(
     dataset_dict, clean_label_index, target_clean_ratio
 ):
     split_name = "train"  # Only applying the operation to the "train" split
@@ -84,25 +84,22 @@ def downsample_clean_documents_proportionally(
     total_labels = 0
     doc_clean_ratios = []
 
-    # Calculate the proportion of "clean" labels in each document
+    # Identify documents that are 100% clean
+    all_clean_docs = []
+    mixed_docs = []
+
     for doc_texts, doc_labels in zip(texts, labels):
-        # Corrected: Now directly iterating over the flat list of labels
         clean_count = sum(1 for label in doc_labels if label == clean_label_index)
         total_count = len(doc_labels)
 
-        # Store the proportion of clean labels for this document
-        doc_clean_ratios.append(
-            {
-                "texts": doc_texts,
-                "labels": doc_labels,
-                "clean_count": clean_count,
-                "total_count": total_count,
-                "clean_ratio": clean_count / total_count if total_count > 0 else 0,
-            }
-        )
-
         total_clean_labels += clean_count
         total_labels += total_count
+
+        # If all labels in the document are clean, mark it as all_clean
+        if clean_count == total_count:
+            all_clean_docs.append((doc_texts, doc_labels))
+        else:
+            mixed_docs.append((doc_texts, doc_labels))
 
     # Calculate the current clean ratio
     current_clean_ratio = total_clean_labels / total_labels
@@ -112,32 +109,32 @@ def downsample_clean_documents_proportionally(
         )
         return dataset_dict  # Skip downsampling if the ratio is already at or below the target
 
-    # Downsample the documents
-    clean_docs = [doc for doc in doc_clean_ratios if doc["clean_ratio"] > 0.5]
-    other_docs = [doc for doc in doc_clean_ratios if doc["clean_ratio"] <= 0.5]
-
-    # Shuffle the clean documents for random sampling
-    random.shuffle(clean_docs)
-
     # Calculate the number of clean labels to remove to reach the target clean ratio
     target_clean_count = int(total_labels * target_clean_ratio)
     clean_labels_to_remove = total_clean_labels - target_clean_count
 
-    # Track which documents we remove
+    # Shuffle the all-clean documents for random sampling
+    random.shuffle(all_clean_docs)
+
+    # Track which documents to remove
     removed_clean_docs = []
 
-    for doc in clean_docs:
+    for doc_texts, doc_labels in all_clean_docs:
         if clean_labels_to_remove <= 0:
             break
-        clean_labels_to_remove -= doc["clean_count"]
-        removed_clean_docs.append(doc)
+        clean_labels_to_remove -= len(
+            doc_labels
+        )  # Each doc in all_clean_docs is 100% clean
+        removed_clean_docs.append((doc_texts, doc_labels))
 
-    # Create the final list of remaining documents
-    remaining_docs = [doc for doc in doc_clean_ratios if doc not in removed_clean_docs]
+    # Combine remaining documents (mixed and those all_clean_docs that were not removed)
+    remaining_docs = mixed_docs + [
+        doc for doc in all_clean_docs if doc not in removed_clean_docs
+    ]
 
-    # Separate texts and labels
+    # Separate texts and labels for the remaining documents
     dataset_dict[split_name]["texts"], dataset_dict[split_name]["labels"] = zip(
-        *[(doc["texts"], doc["labels"]) for doc in remaining_docs]
+        *remaining_docs
     )
 
     return dataset_dict
@@ -178,7 +175,7 @@ def get_data(multiclass, downsample_ratio=0.1):
     print(f"Initial clean ratio: {initial_clean_ratio}")
 
     if downsample_ratio < 1.0:
-        dataset_dict = downsample_clean_documents_proportionally(
+        dataset_dict = downsample_documents_with_all_clean_labels(
             dataset_dict, clean_label_index, downsample_ratio
         )
 

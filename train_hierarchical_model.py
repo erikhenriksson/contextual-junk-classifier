@@ -53,7 +53,7 @@ class DocumentClassifier(nn.Module):
         # Batch size for tokenization, embedding extraction, and Transformer
         self.batch_size = 16
         self.max_length = 512
-        self.tokenizer = AutoTokenizer.from_pretrained(base_model)
+        self.tokenizer = AutoTokenizer.from_pretrained(base_model_name)
 
     def forward(self, document_lines):
         all_logits = []  # Store logits from all batches

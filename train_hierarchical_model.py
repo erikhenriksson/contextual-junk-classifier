@@ -107,12 +107,20 @@ class DocumentClassifier(nn.Module):
         return all_logits
 
     def save_pretrained(self, save_directory):
+        """
+        Save the model weights, config, and tokenizer in Hugging Face format,
+        saving the base model and the classifier head separately.
+        """
         if not os.path.exists(save_directory):
             os.makedirs(save_directory)
 
-        # Save model weights
-        model_weights_path = os.path.join(save_directory, "pytorch_model.bin")
-        torch.save(self.state_dict(), model_weights_path)
+        # Save base model weights (e.g., for BERT or RoBERTa)
+        base_model_save_path = os.path.join(save_directory, "base_model")
+        self.line_model.save_pretrained(base_model_save_path)
+
+        # Save classification head weights separately
+        classifier_weights_path = os.path.join(save_directory, "classifier_head.bin")
+        torch.save(self.linear.state_dict(), classifier_weights_path)
 
         # Use label_encoder to generate label2id and id2label mappings
         label2id = {label: idx for idx, label in enumerate(self.label_encoder.classes_)}
@@ -121,7 +129,7 @@ class DocumentClassifier(nn.Module):
         # Prepare and save config
         config = PretrainedConfig(
             num_labels=len(self.label_encoder.classes_),
-            base_model=self.base_model,
+            base_model=self.base_model_name,
             label2id=label2id,
             id2label=id2label,
         )
@@ -133,27 +141,41 @@ class DocumentClassifier(nn.Module):
         print(f"Model, config, and tokenizer saved to {save_directory}")
 
     @classmethod
-    def from_pretrained(cls, load_directory):
-
+    def from_pretrained(cls, load_directory, device=None):
+        """
+        Load the model weights, config, and tokenizer with the option to specify the device.
+        The base model and classifier head weights are loaded separately.
+        """
         # Load config
         config = AutoConfig.from_pretrained(load_directory)
 
         # Initialize model using the loaded config
         model = cls(
             num_labels=config.num_labels,
-            base_model=config.base_model,
-            freeze_base_model=False,  # Set to False, customize if needed
+            base_model_name=config.base_model,
+            finetuned_base_model=load_directory,
+            freeze_base_model=False,  # Customize if needed
         )
 
-        # Load model weights onto the specified device
-        model_weights_path = os.path.join(load_directory, "pytorch_model.bin")
-        model.load_state_dict(torch.load(model_weights_path, map_location=device))
+        # Determine device
+        if device is None:
+            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-        # Move model to the specified device
-        model = model.to(device)
+        # Load base model weights (e.g., BERT, RoBERTa)
+        base_model_load_path = os.path.join(load_directory, "base_model")
+        model.line_model = AutoModel.from_pretrained(base_model_load_path).to(device)
+
+        # Load classifier head weights separately
+        classifier_weights_path = os.path.join(load_directory, "classifier_head.bin")
+        model.linear.load_state_dict(
+            torch.load(classifier_weights_path, map_location=device)
+        )
 
         # Load tokenizer
         model.tokenizer = AutoTokenizer.from_pretrained(load_directory)
+
+        # Move model to the specified device
+        model = model.to(device)
 
         print(f"Model and tokenizer loaded from {load_directory} onto {device}")
         return model

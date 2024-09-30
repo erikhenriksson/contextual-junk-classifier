@@ -319,7 +319,6 @@ def train_model(
                         epochs_no_improve = 0
 
                         model.save_pretrained(
-                            model,
                             model_save_path,
                         )
                         print(f"Best model saved at step {global_step}")

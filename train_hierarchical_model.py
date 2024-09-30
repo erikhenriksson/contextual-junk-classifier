@@ -25,15 +25,14 @@ class DocumentClassifier(nn.Module):
     def __init__(
         self,
         num_labels,
-        base_model_name,
-        finetuned_base_model,
+        base_model,
         label_encoder,
         freeze_base_model=True,
     ):
         super(DocumentClassifier, self).__init__()
-        self.line_model = AutoModel.from_pretrained(finetuned_base_model)
+        self.line_model = AutoModel.from_pretrained(base_model)
         self.label_encoder = label_encoder
-        self.base_model = base_model_name
+        self.base_model_name = self.line_model.config._name_or_path
         # Optionally freeze the base model
         if freeze_base_model:
             for param in self.line_model.parameters():
@@ -53,7 +52,7 @@ class DocumentClassifier(nn.Module):
         # Batch size for tokenization, embedding extraction, and Transformer
         self.batch_size = 16
         self.max_length = 512
-        self.tokenizer = AutoTokenizer.from_pretrained(base_model_name)
+        self.tokenizer = AutoTokenizer.from_pretrained(self.base_model_name)
 
     def forward(self, document_lines):
         all_logits = []  # Store logits from all batches
@@ -114,7 +113,7 @@ class DocumentClassifier(nn.Module):
         if not os.path.exists(save_directory):
             os.makedirs(save_directory)
 
-        # Save base model weights (e.g., for BERT or RoBERTa)
+        # Save base model weights (e.g., BERT, RoBERTa)
         base_model_save_path = os.path.join(save_directory, "base_model")
         self.line_model.save_pretrained(base_model_save_path)
 
@@ -153,7 +152,6 @@ class DocumentClassifier(nn.Module):
         model = cls(
             num_labels=config.num_labels,
             base_model_name=config.base_model,
-            finetuned_base_model=load_directory,
             freeze_base_model=False,  # Customize if needed
         )
 
@@ -162,7 +160,7 @@ class DocumentClassifier(nn.Module):
             device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         # Load base model weights (e.g., BERT, RoBERTa)
-        base_model_load_path = os.path.join(load_directory, "base_model")
+        base_model_load_path = f"{load_directory}/base_model"
         model.line_model = AutoModel.from_pretrained(base_model_load_path).to(device)
 
         # Load classifier head weights separately
@@ -172,7 +170,9 @@ class DocumentClassifier(nn.Module):
         )
 
         # Load tokenizer
-        model.tokenizer = AutoTokenizer.from_pretrained(load_directory)
+        model.tokenizer = AutoTokenizer.from_pretrained(
+            model.line_model.config._name_or_path
+        )
 
         # Move model to the specified device
         model = model.to(device)
@@ -182,7 +182,7 @@ class DocumentClassifier(nn.Module):
 
 
 # Function to evaluate model on a given dataset
-def evaluate_model(documents, doc_labels, num_labels, model, loss_fn, label_encoder):
+def evaluate_model(documents, doc_labels, model, loss_fn):
     model.eval()  # Set model to evaluation mode
     total_loss = 0
     labels = []
@@ -198,7 +198,9 @@ def evaluate_model(documents, doc_labels, num_labels, model, loss_fn, label_enco
                 )  # Shape: [1, num_lines]
 
                 # Calculate loss
-                loss = loss_fn(logits.view(-1, num_labels), label.view(-1))
+                loss = loss_fn(
+                    logits.view(-1, len(model.label_encoder.classes_)), label.view(-1)
+                )
                 total_loss += loss.item()
 
                 # Get the predicted class indices
@@ -231,7 +233,7 @@ def evaluate_model(documents, doc_labels, num_labels, model, loss_fn, label_enco
     recall = recall_score(labels, preds, average="weighted")
 
     # Use label_encoder to get class names
-    class_names = label_encoder.classes_
+    class_names = model.label_encoder.classes_
 
     # Generate the classification report using class names
     class_report = classification_report(labels, preds, target_names=class_names)
@@ -255,11 +257,8 @@ import os
 
 
 def train_model(
-    train_docs,
-    train_labels,
-    val_docs,
-    val_labels,
-    num_labels,
+    train,
+    val,
     model,
     model_save_path,
     optimizer,
@@ -276,7 +275,7 @@ def train_model(
     global_step = 0  # Keep track of the total number of steps
 
     # Set up a linear learning rate scheduler
-    num_training_steps = len(train_docs) * epochs  # Total number of steps (batches)
+    num_training_steps = len(train["texts"]) * epochs  # Total number of steps (batches)
     scheduler = LambdaLR(
         optimizer,
         lr_lambda=lambda step: max(1 - step / num_training_steps, lr_scheduler_ratio),
@@ -291,8 +290,10 @@ def train_model(
         total_loss = 0
 
         # Create a progress bar for the training loop
-        with tqdm(total=len(train_docs), desc=f"Epoch {epoch + 1}/{epochs}") as pbar:
-            for document, label in zip(train_docs, train_labels):
+        with tqdm(
+            total=len(train["texts"]), desc=f"Epoch {epoch + 1}/{epochs}"
+        ) as pbar:
+            for document, label in zip(train["texts"], train["labels"]):
                 optimizer.zero_grad()  # Reset gradients
 
                 # Forward pass
@@ -304,7 +305,10 @@ def train_model(
                 )  # Shape: [1, num_lines]
 
                 # Calculate loss
-                loss = loss_fn(logits.view(-1, num_labels), label.view(-1))
+                loss = loss_fn(
+                    logits.view(-1, len(model.label_encoder.classes_)),
+                    label.view(-1),
+                )
 
                 # Backward pass and optimization
                 loss.backward()
@@ -324,12 +328,10 @@ def train_model(
                 # Evaluate and check for early stopping at every `evaluation_steps`
                 if global_step % evaluation_steps == 0:
                     val_loss, metrics = evaluate_model(
-                        val_docs,
-                        val_labels,
-                        num_labels,
+                        val["texts"],
+                        val["labels"],
                         model,
                         loss_fn,
-                        model.label_encoder,
                     )
                     print("Dev Loss:", val_loss)
                     print("Dev Metrics:", metrics)
@@ -363,42 +365,27 @@ def train_model(
             break
 
 
-# Main function to run the training process
 def run(args):
 
     # Load and preprocess data
     data, label_encoder = get_data(args.multiclass)
-
-    suffix = "_multiclass" if args.multiclass else "_binary"
-    class_weights = "_class_weights" if args.use_class_weights else ""
-    finetuned_base_model = (
-        f"base_model{suffix}_clean_ratio_{args.downsample_clean_ratio}{class_weights}"
-    )
-    model_save_path = finetuned_base_model + "_hierarchical"
-
+    model_save_path = args.base_model + "_hierarchical"
     num_labels = len(label_encoder.classes_)
+    loss_fn = nn.CrossEntropyLoss()
 
     if args.train:
-        # Initialize model for training
         model = DocumentClassifier(
             num_labels=num_labels,
-            base_model_name=args.base_model,
-            finetuned_base_model=finetuned_base_model,
+            base_model=args.base_model,
             label_encoder=label_encoder,
         ).to(device)
-        optimizer = AdamW(model.parameters(), lr=3e-5, weight_decay=0.01)
-        loss_fn = nn.CrossEntropyLoss()
 
-        # Train the model and save it
         train_model(
-            data["train"]["texts"],
-            data["train"]["labels"],
-            data["dev"]["texts"],
-            data["dev"]["labels"],
-            num_labels,
+            data["train"],
+            data["dev"],
             model,
             model_save_path,
-            optimizer,
+            AdamW(model.parameters(), lr=3e-5, weight_decay=0.01),
             loss_fn,
         )
 
@@ -406,13 +393,8 @@ def run(args):
 
     print("Evaluating on test set...")
 
-    # Loss function for evaluation
-    loss_fn = nn.CrossEntropyLoss()
-
-    # Evaluate the model on the test set
     test_loss, metrics = evaluate_model(
-        data["test"]["texts"],
-        data["test"]["labels"],
+        data["test"],
         num_labels,
         model,
         loss_fn,

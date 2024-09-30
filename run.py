@@ -1,7 +1,8 @@
+import argparse
 import json
+
 from train_base_model import run as run_base
 from train_hierarchical_model import run as run_hierarchical
-import argparse
 
 # Parse arguments
 parser = argparse.ArgumentParser()

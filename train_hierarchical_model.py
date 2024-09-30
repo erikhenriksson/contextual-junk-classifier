@@ -25,15 +25,15 @@ class DocumentClassifier(nn.Module):
     def __init__(
         self,
         num_labels,
-        base_model,
-        saved_base_model,
+        base_model_name,
+        finetuned_base_model,
         label_encoder,
         freeze_base_model=True,
     ):
         super(DocumentClassifier, self).__init__()
-        self.line_model = AutoModel.from_pretrained(saved_base_model)
+        self.line_model = AutoModel.from_pretrained(finetuned_base_model)
         self.label_encoder = label_encoder
-        self.base_model = base_model
+        self.base_model = base_model_name
         # Optionally freeze the base model
         if freeze_base_model:
             for param in self.line_model.parameters():
@@ -362,7 +362,7 @@ def run(args):
         # Initialize model for training
         model = DocumentClassifier(
             num_labels=num_labels,
-            base_model=args.base_model,
+            base_model_name=args.base_model,
             finetuned_base_model=finetuned_base_model,
             label_encoder=label_encoder,
         ).to(device)

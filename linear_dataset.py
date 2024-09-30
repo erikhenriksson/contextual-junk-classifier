@@ -97,7 +97,7 @@ def print_class_distribution(dataset, split_name, label_encoder):
 
 
 # Main function to load and preprocess the data
-def get_data(multiclass, downsample_clean=False, downsample_ratio=0.1):
+def get_data(multiclass, downsample_ratio=0.1):
 
     label_key = "llm_junk_annotations"
 
@@ -124,7 +124,7 @@ def get_data(multiclass, downsample_clean=False, downsample_ratio=0.1):
     clean_label_index = label_encoder.transform(["clean"])[0]
 
     # Downsample the 'clean' class in the train set, if specified
-    if downsample_clean:
+    if downsample_ratio < 1.0:
         dataset_dict["train"] = downsample_clean_class(
             dataset_dict["train"], clean_label_index, downsample_ratio
         )

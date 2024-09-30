@@ -366,9 +366,8 @@ def train_model(
 
 
 def run(args):
-
     # Load and preprocess data
-    data, label_encoder = get_data(args.multiclass)
+    data, label_encoder = get_data(args.multiclass, args.downsample_clean_ratio)
     model_save_path = args.base_model + "_hierarchical"
     num_labels = len(label_encoder.classes_)
     loss_fn = nn.CrossEntropyLoss()

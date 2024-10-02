@@ -84,6 +84,8 @@ class DocumentClassifier(nn.Module):
 
             embeddings = outputs.logits
 
+            print(embeddings.shape)
+
             # Step 3: Add a batch dimension for transformer encoder input
             # embeddings = embeddings.unsqueeze(0)  # Shape: [1, batch_size, 768]
 

@@ -80,14 +80,12 @@ class DocumentClassifier(nn.Module):
             ).to(self.line_model.device)
 
             # Step 2: Extract embeddings from XLM-Roberta for the current batch
-            outputs = self.line_model(
-                input_ids=encoded_inputs["input_ids"],
-                attention_mask=encoded_inputs["attention_mask"],
-            )
+            outputs = self.line_model(**encoded_inputs)
+
             embeddings = outputs.logits
 
             # Step 3: Add a batch dimension for transformer encoder input
-            embeddings = embeddings.unsqueeze(0)  # Shape: [1, batch_size, 768]
+            # embeddings = embeddings.unsqueeze(0)  # Shape: [1, batch_size, 768]
 
             # Step 4: Pass through Transformer Encoder
             encoded_output = self.transformer_encoder(

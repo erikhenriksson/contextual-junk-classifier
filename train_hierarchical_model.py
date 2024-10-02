@@ -84,9 +84,7 @@ class DocumentClassifier(nn.Module):
                 input_ids=encoded_inputs["input_ids"],
                 attention_mask=encoded_inputs["attention_mask"],
             )
-            embeddings = outputs.last_hidden_state[
-                :, 0, :
-            ]  # [CLS] token embeddings, Shape: [batch_size, 768]
+            embeddings = outputs.logits
 
             # Step 3: Add a batch dimension for transformer encoder input
             embeddings = embeddings.unsqueeze(0)  # Shape: [1, batch_size, 768]

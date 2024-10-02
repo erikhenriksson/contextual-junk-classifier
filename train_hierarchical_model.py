@@ -1,10 +1,4 @@
-from transformers import (
-    AutoTokenizer,
-    AutoModel,
-    AutoModelForSequenceClassification,
-    AutoConfig,
-    PretrainedConfig,
-)
+from transformers import AutoTokenizer, AutoModel, AutoConfig, PretrainedConfig
 
 import torch
 import torch.nn as nn
@@ -36,9 +30,7 @@ class DocumentClassifier(nn.Module):
         freeze_base_model=True,
     ):
         super(DocumentClassifier, self).__init__()
-        self.line_model = AutoModelForSequenceClassification.from_pretrained(
-            base_model, num_labels=num_labels
-        )
+        self.line_model = AutoModel.from_pretrained(base_model)
         self.label_encoder = label_encoder
         self.base_model_name = self.line_model.config._name_or_path
         # Optionally freeze the base model
@@ -80,14 +72,16 @@ class DocumentClassifier(nn.Module):
             ).to(self.line_model.device)
 
             # Step 2: Extract embeddings from XLM-Roberta for the current batch
-            outputs = self.line_model(**encoded_inputs)
-
-            embeddings = outputs.logits
-
-            print(embeddings.shape)
+            outputs = self.line_model(
+                input_ids=encoded_inputs["input_ids"],
+                attention_mask=encoded_inputs["attention_mask"],
+            )
+            embeddings = outputs.last_hidden_state[
+                :, 0, :
+            ]  # [CLS] token embeddings, Shape: [batch_size, 768]
 
             # Step 3: Add a batch dimension for transformer encoder input
-            # embeddings = embeddings.unsqueeze(0)  # Shape: [1, batch_size, 768]
+            embeddings = embeddings.unsqueeze(0)  # Shape: [1, batch_size, 768]
 
             # Step 4: Pass through Transformer Encoder
             encoded_output = self.transformer_encoder(
@@ -167,9 +161,7 @@ class DocumentClassifier(nn.Module):
 
         # Load base model weights (e.g., BERT, RoBERTa)
         base_model_load_path = f"{load_directory}/base_model"
-        model.line_model = AutoModelForSequenceClassification.from_pretrained(
-            base_model_load_path
-        ).to(device)
+        model.line_model = AutoModel.from_pretrained(base_model_load_path).to(device)
 
         # Load classifier head weights separately
         classifier_weights_path = os.path.join(load_directory, "classifier_head.bin")

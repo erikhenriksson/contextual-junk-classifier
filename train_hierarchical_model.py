@@ -358,7 +358,9 @@ def train_model(
                     model.train()  # Switch back to training mode
 
         # Log epoch-level statistics
-        print(f"Epoch {epoch + 1}/{epochs}, Train Loss: {total_loss / len(train_docs)}")
+        print(
+            f"Epoch {epoch + 1}/{epochs}, Train Loss: {total_loss / len(train['texts'])}"
+        )
 
         # If early stopping was triggered inside the loop, break the epoch loop as well
         if early_stop:

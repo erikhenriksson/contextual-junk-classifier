@@ -1,4 +1,10 @@
-from transformers import AutoTokenizer, AutoModel, AutoConfig, PretrainedConfig
+from transformers import (
+    AutoTokenizer,
+    AutoModel,
+    AutoModelForSequenceClassification,
+    AutoConfig,
+    PretrainedConfig,
+)
 
 import torch
 import torch.nn as nn
@@ -30,7 +36,9 @@ class DocumentClassifier(nn.Module):
         freeze_base_model=True,
     ):
         super(DocumentClassifier, self).__init__()
-        self.line_model = AutoModel.from_pretrained(base_model)
+        self.line_model = AutoModelForSequenceClassification.from_pretrained(
+            base_model, num_labels=num_labels
+        )
         self.label_encoder = label_encoder
         self.base_model_name = self.line_model.config._name_or_path
         # Optionally freeze the base model
@@ -161,7 +169,9 @@ class DocumentClassifier(nn.Module):
 
         # Load base model weights (e.g., BERT, RoBERTa)
         base_model_load_path = f"{load_directory}/base_model"
-        model.line_model = AutoModel.from_pretrained(base_model_load_path).to(device)
+        model.line_model = AutoModelForSequenceClassification.from_pretrained(
+            base_model_load_path
+        ).to(device)
 
         # Load classifier head weights separately
         classifier_weights_path = os.path.join(load_directory, "classifier_head.bin")

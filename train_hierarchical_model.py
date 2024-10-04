@@ -107,25 +107,28 @@ class DocumentClassifier(nn.Module):
 
     def save_pretrained(self, save_directory):
         """
-        Save the model weights, config, and tokenizer in Hugging Face format,
-        saving the base model and the classifier head separately.
+        Save the model weights, config, and tokenizer in one .bin file.
         """
         if not os.path.exists(save_directory):
             os.makedirs(save_directory)
 
-        # Save base model weights (e.g., BERT, RoBERTa)
-        base_model_save_path = os.path.join(save_directory, "base_model")
-        self.line_model.save_pretrained(base_model_save_path)
-
-        # Save classification head weights separately
-        classifier_weights_path = os.path.join(save_directory, "classifier_head.bin")
-        torch.save(self.linear.state_dict(), classifier_weights_path)
+        # Save entire model state dict (base model + classifier + custom layers)
+        model_save_path = os.path.join(save_directory, "model.bin")
+        torch.save(
+            {
+                "base_model": self.line_model.state_dict(),
+                "transformer_encoder": self.transformer_encoder.state_dict(),
+                "layer_norm": self.layer_norm.state_dict(),
+                "linear": self.linear.state_dict(),
+            },
+            model_save_path,
+        )
 
         # Use label_encoder to generate label2id and id2label mappings
         label2id = {label: idx for idx, label in enumerate(self.label_encoder.classes_)}
         id2label = {idx: label for idx, label in enumerate(self.label_encoder.classes_)}
 
-        # Prepare and save config
+        # Save config with label mappings
         config = PretrainedConfig(
             num_labels=len(self.label_encoder.classes_),
             base_model=self.base_model_name,
@@ -142,42 +145,35 @@ class DocumentClassifier(nn.Module):
     @classmethod
     def from_pretrained(cls, load_directory, device=None):
         """
-        Load the model weights, config, and tokenizer with the option to specify the device.
-        The base model and classifier head weights are loaded separately.
+        Load the model weights, config, and tokenizer from one .bin file.
         """
         # Load config
         config = AutoConfig.from_pretrained(load_directory)
 
         # Initialize model using the loaded config
         model = cls(
-            num_labels=config.num_labels,
-            base_model_name=config.base_model,
-            freeze_base_model=False,  # Customize if needed
+            num_labels=len(config.id2label),
+            base_model=config.base_model,  # Load base model name from config
         )
 
         # Determine device
         if device is None:
             device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-        # Load base model weights (e.g., BERT, RoBERTa)
-        base_model_load_path = f"{load_directory}/base_model"
-        model.line_model = AutoModel.from_pretrained(base_model_load_path).to(device)
+        # Load the saved model state dict from the .bin file
+        model_load_path = os.path.join(load_directory, "model.bin")
+        model_state = torch.load(model_load_path, map_location=device)
 
-        # Load classifier head weights separately
-        classifier_weights_path = os.path.join(load_directory, "classifier_head.bin")
-        model.linear.load_state_dict(
-            torch.load(classifier_weights_path, map_location=device)
-        )
+        # Load each part of the model from the state dict
+        model.line_model.load_state_dict(model_state["base_model"])
+        model.transformer_encoder.load_state_dict(model_state["transformer_encoder"])
+        model.layer_norm.load_state_dict(model_state["layer_norm"])
+        model.linear.load_state_dict(model_state["linear"])
 
-        # Load tokenizer
-        model.tokenizer = AutoTokenizer.from_pretrained(
-            model.line_model.config._name_or_path
-        )
-
-        # Move model to the specified device
+        # Move the model to the specified device
         model = model.to(device)
 
-        print(f"Model and tokenizer loaded from {load_directory} onto {device}")
+        print(f"Model loaded from {load_directory} onto {device}")
         return model
 
 

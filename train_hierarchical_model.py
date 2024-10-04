@@ -1,3 +1,7 @@
+import os
+
+os.environ["HF_HOME"] = ".hf/hf_home"
+
 from transformers import AutoTokenizer, AutoModel, AutoConfig, PretrainedConfig
 
 import torch
@@ -24,14 +28,14 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 class DocumentClassifier(nn.Module):
     def __init__(
         self,
-        num_labels,
+        class_names,
         base_model,
-        label_encoder,
         freeze_base_model=True,
     ):
         super(DocumentClassifier, self).__init__()
+        self.num_labels = len(class_names)
+        self.class_names = class_names
         self.line_model = AutoModel.from_pretrained(base_model)
-        self.label_encoder = label_encoder
         self.base_model_name = self.line_model.config._name_or_path
         # Optionally freeze the base model
         if freeze_base_model:
@@ -47,7 +51,7 @@ class DocumentClassifier(nn.Module):
         self.dropout = nn.Dropout(p=0.1)  # Dropout probability of 0.1
 
         # Final linear classification layer
-        self.linear = nn.Linear(768, num_labels)
+        self.linear = nn.Linear(768, self.num_labels)
 
         # Batch size for tokenization, embedding extraction, and Transformer
         self.batch_size = 16
@@ -124,13 +128,12 @@ class DocumentClassifier(nn.Module):
             model_save_path,
         )
 
-        # Use label_encoder to generate label2id and id2label mappings
-        label2id = {label: idx for idx, label in enumerate(self.label_encoder.classes_)}
-        id2label = {idx: label for idx, label in enumerate(self.label_encoder.classes_)}
+        label2id = {label: idx for idx, label in enumerate(self.class_names)}
+        id2label = {idx: label for idx, label in enumerate(self.class_names)}
 
         # Save config with label mappings
         config = PretrainedConfig(
-            num_labels=len(self.label_encoder.classes_),
+            num_labels=self.num_labels,
             base_model=self.base_model_name,
             label2id=label2id,
             id2label=id2label,
@@ -152,8 +155,8 @@ class DocumentClassifier(nn.Module):
 
         # Initialize model using the loaded config
         model = cls(
-            num_labels=len(config.id2label),
-            base_model=config.base_model,  # Load base model name from config
+            class_names=config.class_names,
+            base_model=config.base_model,
         )
 
         # Determine device
@@ -178,7 +181,7 @@ class DocumentClassifier(nn.Module):
 
 
 # Function to evaluate model on a given dataset
-def evaluate_model(documents, doc_labels, model, loss_fn):
+def evaluate_model(val, model, loss_fn):
     model.eval()  # Set model to evaluation mode
     total_loss = 0
     labels = []
@@ -186,17 +189,15 @@ def evaluate_model(documents, doc_labels, model, loss_fn):
 
     with torch.no_grad():  # Disable gradient calculation
         # Add a progress bar to the evaluation loop
-        with tqdm(total=len(documents), desc="Evaluating") as pbar:
-            for document, label in zip(documents, doc_labels):
+        with tqdm(total=len(val["texts"]), desc="Evaluating") as pbar:
+            for document, label in zip(val["texts"], val["labels"]):
                 logits = model(document)
                 label = (
                     torch.tensor(label).to(device).unsqueeze(0)
                 )  # Shape: [1, num_lines]
 
                 # Calculate loss
-                loss = loss_fn(
-                    logits.view(-1, len(model.label_encoder.classes_)), label.view(-1)
-                )
+                loss = loss_fn(logits.view(-1, model.num_labels), label.view(-1))
                 total_loss += loss.item()
 
                 # Get the predicted class indices
@@ -211,7 +212,7 @@ def evaluate_model(documents, doc_labels, model, loss_fn):
                 # Update progress bar
                 pbar.update(1)
 
-    avg_loss = total_loss / len(documents)
+    avg_loss = total_loss / len(val["texts"])
 
     # Calculate confusion matrix (optional)
     conf_matrix = confusion_matrix(labels, preds).tolist()
@@ -228,11 +229,8 @@ def evaluate_model(documents, doc_labels, model, loss_fn):
     precision = precision_score(labels, preds, average="weighted")
     recall = recall_score(labels, preds, average="weighted")
 
-    # Use label_encoder to get class names
-    class_names = model.label_encoder.classes_
-
     # Generate the classification report using class names
-    class_report = classification_report(labels, preds, target_names=class_names)
+    class_report = classification_report(labels, preds, target_names=model.class_names)
 
     # Print the classification report
     print("Classification Report:\n", class_report)
@@ -247,9 +245,6 @@ def evaluate_model(documents, doc_labels, model, loss_fn):
         "recall": recall,
         "confusion_matrix": conf_matrix,
     }
-
-
-import os
 
 
 def train_model(
@@ -302,7 +297,7 @@ def train_model(
 
                 # Calculate loss
                 loss = loss_fn(
-                    logits.view(-1, len(model.label_encoder.classes_)),
+                    logits.view(-1, model.num_labels),
                     label.view(-1),
                 )
 
@@ -324,8 +319,7 @@ def train_model(
                 # Evaluate and check for early stopping at every `evaluation_steps`
                 if global_step % evaluation_steps == 0:
                     val_loss, metrics = evaluate_model(
-                        val["texts"],
-                        val["labels"],
+                        val,
                         model,
                         loss_fn,
                     )
@@ -367,14 +361,13 @@ def run(args):
     # Load and preprocess data
     data, label_encoder = get_data(args.multiclass, args.downsample_clean_ratio)
     model_save_path = args.base_model + "_hierarchical"
-    num_labels = len(label_encoder.classes_)
+    class_names = label_encoder.classes_
     loss_fn = nn.CrossEntropyLoss()
 
     if args.train:
         model = DocumentClassifier(
-            num_labels=num_labels,
+            class_names=class_names,
             base_model=args.base_model,
-            label_encoder=label_encoder,
         ).to(device)
 
         train_model(
@@ -392,10 +385,8 @@ def run(args):
 
     test_loss, metrics = evaluate_model(
         data["test"],
-        num_labels,
         model,
         loss_fn,
-        model.label_encoder,
     )
 
     print("Test Loss:", test_loss)

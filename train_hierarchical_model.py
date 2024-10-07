@@ -133,7 +133,7 @@ class DocumentClassifier(nn.Module):
 
         # Save config with label mappings
         config = PretrainedConfig(
-            num_labels=self.num_labels,
+            class_names=self.class_names,
             base_model=self.base_model_name,
             label2id=label2id,
             id2label=id2label,

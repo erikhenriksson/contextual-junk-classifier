@@ -14,9 +14,9 @@ def load_jsonl(filename, label_key, multiclass):
                 else "llm_junk_annotations_fixed"
             )
         ]
-        for i, label in enumerate(labels):
-            if label in ["noise", "other junk", "code"]:
-                labels[i] = "other junk"
+        # for i, label in enumerate(labels):
+        #    if label in ["noise", "other junk", "code"]:
+        #        labels[i] = "other junk"
         if not multiclass:
             labels = [x if x == "clean" else "junk" for x in labels]
 

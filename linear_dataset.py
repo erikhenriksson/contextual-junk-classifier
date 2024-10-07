@@ -1,7 +1,7 @@
 import json
 import numpy as np
 from sklearn.preprocessing import LabelEncoder
-from datasets import Dataset, DatasetDict
+from datasets import Dataset, DatasetDict, concatenate_datasets
 from collections import Counter
 
 
@@ -97,7 +97,7 @@ def print_class_distribution(dataset, split_name, label_encoder):
 
 
 # Main function to load and preprocess the data
-def get_data(multiclass, downsample_ratio=0.1):
+def get_data(multiclass, downsample_ratio=0.1, add_synthetic_data=True):
 
     label_key = "llm_junk_annotations"
 
@@ -128,6 +128,31 @@ def get_data(multiclass, downsample_ratio=0.1):
         dataset_dict["train"] = downsample_clean_class(
             dataset_dict["train"], clean_label_index, downsample_ratio
         )
+
+    print(dataset_dict["train"][0])
+    print(label_encoder.classes_)
+
+    # Add code to load synthethic data for the classes.
+    if add_synthetic_data:
+        for class_name in ["code", "junk", "noise", "non-english"]:
+            synthetic_data = []
+            if multiclass:
+                class_index = label_encoder.transform([class_name])[0]
+            else:
+                class_index = label_encoder.transform(["junk"])[0]
+            with open(f"data/synth_{class_name}.txt", "r") as f:
+                for line in f:
+                    print({"text": line.strip(), "label": class_index})
+                    synthetic_data.append({"text": line.strip(), "label": class_index})
+            synthetic_data_dict = {
+                "text": [item["text"] for item in synthetic_data],
+                "label": [item["label"] for item in synthetic_data],
+            }
+            dataset_dict["train"] = concatenate_datasets(
+                [dataset_dict["train"], Dataset.from_dict(synthetic_data_dict)]
+            )
+
+    print(dataset_dict["train"][-1])
 
     # Print class distribution for each split
     print_class_distribution(dataset_dict["train"], "train", label_encoder)

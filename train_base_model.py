@@ -144,18 +144,19 @@ def run(args):
         output_dir=saved_model_name,
         learning_rate=3e-5,  # Adjust this if needed for scaling
         eval_strategy="steps",
-        eval_steps=500,
+        eval_steps=1000,
         save_strategy="steps",
         logging_dir=f"{saved_model_name}/logs",
         logging_steps=100,
         save_total_limit=2,
         load_best_model_at_end=True,
-        metric_for_best_model="f1",
+        metric_for_best_model="loss",
         greater_is_better=True,
-        per_device_train_batch_size=16,
-        per_device_eval_batch_size=16,
+        per_device_train_batch_size=32,
+        per_device_eval_batch_size=32,
         num_train_epochs=5,
         seed=42,
+        fp16=True,
     )
 
     # Define early stopping callback

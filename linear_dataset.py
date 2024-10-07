@@ -142,7 +142,6 @@ def get_data(multiclass, downsample_ratio=0.1, add_synthetic_data=True):
                 class_index = label_encoder.transform(["junk"])[0]
             with open(f"data/synth_{class_name}.txt", "r") as f:
                 for line in f:
-                    print({"text": line.strip(), "label": class_index})
                     synthetic_data.append({"text": line.strip(), "label": class_index})
             synthetic_data_dict = {
                 "text": [item["text"] for item in synthetic_data],

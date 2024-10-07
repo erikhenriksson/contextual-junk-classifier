@@ -103,7 +103,7 @@ def run(args):
     data, label_encoder = get_data(
         args.multiclass,
         downsample_ratio=args.downsample_clean_ratio,
-        add_synthetic=args.add_synthetic_data,
+        add_synthetic_data=args.add_synthetic_data,
     )
 
     suffix = "_multiclass" if args.multiclass else "_binary"

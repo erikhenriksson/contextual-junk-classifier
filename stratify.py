@@ -7,6 +7,7 @@ from sklearn.preprocessing import LabelEncoder
 from skmultilearn.model_selection import IterativeStratification
 from sklearn.model_selection import train_test_split
 
+"""
 taxonomy = [
     "boilerplate",
     "clean",
@@ -17,7 +18,18 @@ taxonomy = [
     "other junk",
     "structured",
 ]
-
+"""
+taxonomy = [
+    "boilerplate",
+    "clean",
+    "code",
+    "data",
+    "junk",
+    "metadata",
+    "navigational",
+    "non-english",
+    "noise",
+]
 # Path to the JSONL file
 file_path = "../llm-junklabeling/output.jsonl"
 
@@ -27,10 +39,10 @@ data = []
 
 def map_label(label):
     label = label.lower()
-    if label in ["noise", "other junk", "code"]:
-        label = "other junk"
-    elif label not in taxonomy:
-        label = "clean"
+    # if label in ["noise", "other junk", "code"]:
+    #    label = "other junk"
+    # elif label not in taxonomy:
+    #    label = "clean"
     return label
 
 

@@ -195,6 +195,9 @@ def get_data(multiclass, downsample_ratio=0.1):
         dataset_dict = remove_all_clean_documents(
             dataset_dict, clean_label_index, downsample_ratio
         )
+        dataset_dict = remove_all_clean_documents(
+            dataset_dict, label_encoder.transform(["metadata"])[0], downsample_ratio
+        )
 
         # Finally, calculate the clean vs other ratio again after downsampling
         final_clean_count, final_other_count, final_clean_ratio = (

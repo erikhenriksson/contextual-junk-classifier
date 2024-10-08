@@ -131,28 +131,30 @@ def downsample_documents_with_all_clean_labels(
     return dataset_dict
 
 
-# Function to remove documents from the training split that have 100% clean labels
-def remove_all_clean_documents(dataset_dict, clean_label_index):
+# Function to remove documents from the training split that contain only specified labels
+def remove_specified_label_only_documents(dataset_dict, excluded_label_indexes):
     split_name = "train"
     data = dataset_dict[split_name]
     texts = data["texts"]
     labels = data["labels"]
 
-    # Identify documents that are 100% clean
+    # Identify documents that contain labels other than the specified ones
     mixed_docs = []
 
     for doc_texts, doc_labels in zip(texts, labels):
-        clean_count = sum(1 for label in doc_labels if label == clean_label_index)
-        total_count = len(doc_labels)
-
-        # If all labels in the document are clean, mark it as all_clean
-        if clean_count < total_count:
+        # Check if all labels in the document are within the excluded_label_indexes list
+        if any(label not in excluded_label_indexes for label in doc_labels):
+            # If there is at least one label not in the excluded list, keep the document
             mixed_docs.append((doc_texts, doc_labels))
 
     # Separate texts and labels for the remaining documents
-    dataset_dict[split_name]["texts"], dataset_dict[split_name]["labels"] = zip(
-        *mixed_docs
-    )
+    if mixed_docs:  # Check if there are documents left after filtering
+        dataset_dict[split_name]["texts"], dataset_dict[split_name]["labels"] = zip(
+            *mixed_docs
+        )
+    else:
+        # If no documents remain, empty the texts and labels lists
+        dataset_dict[split_name]["texts"], dataset_dict[split_name]["labels"] = [], []
 
     return dataset_dict
 
@@ -192,9 +194,11 @@ def get_data(multiclass, downsample_ratio=0.1):
     print(f"Initial clean ratio: {initial_clean_ratio}")
 
     if downsample_ratio < 1.0:
-        dataset_dict = remove_all_clean_documents(dataset_dict, clean_label_index)
-        dataset_dict = remove_all_clean_documents(
-            dataset_dict, label_encoder.transform(["metadata"])[0]
+        dataset_dict = remove_specified_label_only_documents(
+            dataset_dict, [clean_label_index]
+        )
+        dataset_dict = remove_specified_label_only_documents(
+            dataset_dict, [clean_label_index, label_encoder.transform(["metadata"])[0]]
         )
 
         # Finally, calculate the clean vs other ratio again after downsampling

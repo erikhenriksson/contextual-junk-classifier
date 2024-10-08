@@ -196,7 +196,7 @@ def run(args):
         save_total_limit=2,
         load_best_model_at_end=True,
         metric_for_best_model="loss",
-        greater_is_better=True,
+        # greater_is_better=True,
         per_device_train_batch_size=16,
         per_device_eval_batch_size=16,
         num_train_epochs=5,

@@ -79,7 +79,7 @@ class DocumentClassifier(nn.Module):
         self.linear = nn.Linear(d_model, self.num_labels)
 
         # Batch size for tokenization, embedding extraction, and Transformer
-        self.batch_size = 32
+        self.batch_size = 16
         self.max_length = 512
         self.tokenizer = AutoTokenizer.from_pretrained(self.base_model_name)
 

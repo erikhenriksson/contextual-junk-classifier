@@ -62,75 +62,6 @@ def calculate_clean_vs_other_ratio(dataset_dict, split_name, clean_label_index):
     return clean_count, other_count, clean_ratio
 
 
-# Function to downsample documents with 100% clean labels
-def downsample_documents_with_all_clean_labels(
-    dataset_dict, clean_label_index, target_clean_ratio
-):
-    split_name = "train"  # Only applying the operation to the "train" split
-    data = dataset_dict[split_name]
-    texts = data["texts"]
-    labels = data["labels"]
-
-    # Count the total number of clean and non-clean labels in the current split
-    total_clean_labels = 0
-    total_labels = 0
-
-    # Identify documents that are 100% clean
-    all_clean_docs = []
-    mixed_docs = []
-
-    for doc_texts, doc_labels in zip(texts, labels):
-        clean_count = sum(1 for label in doc_labels if label == clean_label_index)
-        total_count = len(doc_labels)
-
-        total_clean_labels += clean_count
-        total_labels += total_count
-
-        # If all labels in the document are clean, mark it as all_clean
-        if clean_count == total_count:
-            all_clean_docs.append((doc_texts, doc_labels))
-        else:
-            mixed_docs.append((doc_texts, doc_labels))
-
-    # Calculate the current clean ratio
-    current_clean_ratio = total_clean_labels / total_labels
-    if current_clean_ratio <= target_clean_ratio:
-        print(
-            f"No downsampling needed for {split_name}, current clean ratio: {current_clean_ratio}"
-        )
-        return dataset_dict  # Skip downsampling if the ratio is already at or below the target
-
-    # Calculate the number of clean labels to remove to reach the target clean ratio
-    target_clean_count = int(total_labels * target_clean_ratio)
-    clean_labels_to_remove = total_clean_labels - target_clean_count
-
-    # Shuffle the all-clean documents for random sampling
-    random.shuffle(all_clean_docs)
-
-    # Track which documents to remove
-    removed_clean_docs = []
-
-    for doc_texts, doc_labels in all_clean_docs:
-        if clean_labels_to_remove <= 0:
-            break
-        clean_labels_to_remove -= len(
-            doc_labels
-        )  # Each doc in all_clean_docs is 100% clean
-        removed_clean_docs.append((doc_texts, doc_labels))
-
-    # Combine remaining documents (mixed and those all_clean_docs that were not removed)
-    remaining_docs = mixed_docs + [
-        doc for doc in all_clean_docs if doc not in removed_clean_docs
-    ]
-
-    # Separate texts and labels for the remaining documents
-    dataset_dict[split_name]["texts"], dataset_dict[split_name]["labels"] = zip(
-        *remaining_docs
-    )
-
-    return dataset_dict
-
-
 # Function to remove documents from the training split that contain only specified labels
 def remove_specified_label_only_documents(dataset_dict, excluded_label_indexes):
     split_name = "train"
@@ -160,7 +91,7 @@ def remove_specified_label_only_documents(dataset_dict, excluded_label_indexes):
 
 
 # Function to chunk the training split with a minimum chunk size of 5
-def chunk_training_split(dataset_dict, chunk_size=20, min_chunk_size=5):
+def chunk_training_split(dataset_dict, chunk_size=16, min_chunk_size=5):
     split_name = "train"
     data = dataset_dict[split_name]
     texts = data["texts"]

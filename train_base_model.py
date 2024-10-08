@@ -112,7 +112,7 @@ def run(args):
 
     num_labels = len(label_encoder.classes_)
 
-    # Tokenize data using XLM-Roberta tokenizer
+    # Tokenize dataset
     tokenizer = AutoTokenizer.from_pretrained(args.base_model)
 
     def tokenize(batch):
@@ -130,7 +130,7 @@ def run(args):
 
     # Load XLM-Roberta model for sequence classification
     model = AutoModelForSequenceClassification.from_pretrained(
-        "xlm-roberta-base" if args.train else saved_model_name, num_labels=num_labels
+        args.base_model if args.train else saved_model_name, num_labels=num_labels
     )
 
     # Calculate class weights based on the training labels

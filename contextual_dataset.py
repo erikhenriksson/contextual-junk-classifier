@@ -38,14 +38,6 @@ def encode_labels(doc_data, label_key, label_encoder=None):
     for doc in doc_data:
         labels = label_encoder.transform(doc[label_key]).tolist()
         lines = doc["text"].split("\n")
-        # Ensure that there is always a labels for line. If not, append with "clean"
-        if len(labels) < len(lines):
-            labels.extend(
-                [label_encoder.transform(["clean"])[0]] * (len(lines) - len(labels))
-            )
-        # If there are too many labels, truncate the list
-        elif len(labels) > len(lines):
-            labels = labels[: len(lines)]
         data["labels"].append(labels)
         data["texts"].append(lines)
     return data, label_encoder

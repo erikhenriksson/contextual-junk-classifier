@@ -31,6 +31,7 @@ class DocumentClassifier(nn.Module):
         class_names,
         base_model,
         freeze_base_model=True,
+        d_model=1024,
     ):
         super(DocumentClassifier, self).__init__()
         self.num_labels = len(class_names)
@@ -43,18 +44,18 @@ class DocumentClassifier(nn.Module):
                 param.requires_grad = False
 
         # Transformer encoder with multiple layers
-        encoder_layer = nn.TransformerEncoderLayer(d_model=768, nhead=8)
+        encoder_layer = nn.TransformerEncoderLayer(d_model=d_model, nhead=8)
         self.transformer_encoder = nn.TransformerEncoder(encoder_layer, num_layers=12)
 
         # Layer Normalization and Dropout
-        self.layer_norm = nn.LayerNorm(768)
+        self.layer_norm = nn.LayerNorm(d_model)
         self.dropout = nn.Dropout(p=0.1)  # Dropout probability of 0.1
 
         # Final linear classification layer
-        self.linear = nn.Linear(768, self.num_labels)
+        self.linear = nn.Linear(d_model, self.num_labels)
 
         # Batch size for tokenization, embedding extraction, and Transformer
-        self.batch_size = 16
+        self.batch_size = 32
         self.max_length = 512
         self.tokenizer = AutoTokenizer.from_pretrained(self.base_model_name)
 
@@ -82,15 +83,15 @@ class DocumentClassifier(nn.Module):
             )
             embeddings = outputs.last_hidden_state[
                 :, 0, :
-            ]  # [CLS] token embeddings, Shape: [batch_size, 768]
+            ]  # [CLS] token embeddings, Shape: [batch_size, d_model]
 
             # Step 3: Add a batch dimension for transformer encoder input
-            embeddings = embeddings.unsqueeze(0)  # Shape: [1, batch_size, 768]
+            embeddings = embeddings.unsqueeze(0)  # Shape: [1, batch_size, d_model]
 
             # Step 4: Pass through Transformer Encoder
             encoded_output = self.transformer_encoder(
                 embeddings
-            )  # Shape: [1, batch_size, 768]
+            )  # Shape: [1, batch_size, d_model]
 
             # Step 5: Apply Layer Normalization and Dropout
             encoded_output = self.layer_norm(encoded_output)

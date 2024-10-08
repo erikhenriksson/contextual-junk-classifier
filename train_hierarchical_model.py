@@ -5,6 +5,7 @@ os.environ["HF_HOME"] = ".hf/hf_home"
 from transformers import AutoTokenizer, AutoModel, AutoConfig, PretrainedConfig
 
 import torch
+import torch.nn.functional as F
 import torch.nn as nn
 from torch.optim.lr_scheduler import LambdaLR
 from tqdm import tqdm
@@ -24,6 +25,29 @@ from contextual_dataset import get_data
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
+class FocalLoss(nn.Module):
+    def __init__(self, alpha=1, gamma=2, reduction="mean"):
+        super(FocalLoss, self).__init__()
+        self.alpha = alpha
+        self.gamma = gamma
+        self.reduction = reduction
+
+    def forward(self, logits, labels):
+        # Compute the cross entropy loss for each instance
+        ce_loss = F.cross_entropy(logits, labels, reduction="none")
+        # Compute the prediction probabilities
+        p_t = torch.exp(-ce_loss)
+        # Compute the focal loss by scaling the cross-entropy loss
+        focal_loss = self.alpha * (1 - p_t) ** self.gamma * ce_loss
+
+        if self.reduction == "mean":
+            return focal_loss.mean()
+        elif self.reduction == "sum":
+            return focal_loss.sum()
+        else:
+            return focal_loss
+
+
 # Define a combined model
 class DocumentClassifier(nn.Module):
     def __init__(
@@ -31,7 +55,7 @@ class DocumentClassifier(nn.Module):
         class_names,
         base_model,
         freeze_base_model=True,
-        d_model=1024,
+        d_model=768,
     ):
         super(DocumentClassifier, self).__init__()
         self.num_labels = len(class_names)
@@ -363,7 +387,7 @@ def run(args):
     data, label_encoder = get_data(args.multiclass, args.downsample_clean_ratio)
     model_save_path = args.base_model + "_hierarchical"
     class_names = label_encoder.classes_
-    loss_fn = nn.CrossEntropyLoss()
+    loss_fn = FocalLoss(alpha=1, gamma=2, reduction="mean")
 
     if args.train:
         model = DocumentClassifier(

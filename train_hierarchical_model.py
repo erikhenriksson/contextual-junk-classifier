@@ -436,7 +436,7 @@ def run(args):
 
     # If args.use_focal_loss is True, use Focal Loss instead of Cross Entropy
     if args.use_focal_loss:
-        alpha = calculate_inverse_frequency_alpha(data["train"], label_encoder)
+        alpha = calculate_inverse_frequency_alpha(data, label_encoder)
         loss_fn = FocalLoss(alpha=alpha, gamma=2, reduction="mean")
     else:
         loss_fn = nn.CrossEntropyLoss()

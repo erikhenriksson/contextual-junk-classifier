@@ -2,6 +2,8 @@ import os
 
 os.environ["HF_HOME"] = ".hf/hf_home"
 
+from collections import Counter
+
 from transformers import AutoTokenizer, AutoModel, AutoConfig, PretrainedConfig
 
 import torch
@@ -23,6 +25,44 @@ from torch.optim import AdamW
 from contextual_dataset import get_data
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+
+def calculate_inverse_frequency_alpha(data, label_encoder):
+    """
+    Calculate inverse frequency-based alpha values for focal loss in imbalanced datasets.
+
+    Args:
+    - data (dict): Dictionary containing training data, with a nested list of labels in data["train"]["labels"].
+    - label_encoder (LabelEncoder): Fitted LabelEncoder instance for label encoding.
+
+    Returns:
+    - alpha (torch.Tensor): Normalized inverse frequency-based alpha tensor.
+    """
+    # Flatten the list of lists for labels
+    flattened_labels = [
+        label for sublist in data["train"]["labels"] for label in sublist
+    ]
+
+    # Calculate the frequency of each label
+    label_counts = Counter(flattened_labels)
+
+    # Total number of labels
+    total_labels = sum(label_counts.values())
+
+    # Calculate inverse frequency for each label
+    inverse_freq = {
+        label: total_labels / count for label, count in label_counts.items()
+    }
+
+    # Convert inverse frequencies to a tensor, in the order of the label_encoder classes
+    alpha = torch.tensor(
+        [inverse_freq[label] for label in label_encoder.classes_], dtype=torch.float
+    )
+
+    # Normalize alpha so that it sums to 1 (optional)
+    alpha = alpha / alpha.sum()
+
+    return alpha
 
 
 class FocalLoss(nn.Module):
@@ -385,6 +425,7 @@ def train_model(
 def run(args):
     # Load and preprocess data
     data, label_encoder = get_data(args.multiclass, args.downsample_clean_ratio)
+
     model_save_path = (
         args.base_model
         + "_hierarchical"
@@ -395,7 +436,8 @@ def run(args):
 
     # If args.use_focal_loss is True, use Focal Loss instead of Cross Entropy
     if args.use_focal_loss:
-        loss_fn = FocalLoss(alpha=1, gamma=2, reduction="mean")
+        alpha = calculate_inverse_frequency_alpha(data["train"], label_encoder)
+        loss_fn = FocalLoss(alpha=alpha, gamma=2, reduction="mean")
     else:
         loss_fn = nn.CrossEntropyLoss()
 

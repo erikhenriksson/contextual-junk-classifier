@@ -74,7 +74,6 @@ def downsample_documents_with_all_clean_labels(
     # Count the total number of clean and non-clean labels in the current split
     total_clean_labels = 0
     total_labels = 0
-    doc_clean_ratios = []
 
     # Identify documents that are 100% clean
     all_clean_docs = []
@@ -132,6 +131,32 @@ def downsample_documents_with_all_clean_labels(
     return dataset_dict
 
 
+# Function to remove documents from the training split that have 100% clean labels
+def remove_all_clean_documents(dataset_dict, clean_label_index):
+    split_name = "train"
+    data = dataset_dict[split_name]
+    texts = data["texts"]
+    labels = data["labels"]
+
+    # Identify documents that are 100% clean
+    mixed_docs = []
+
+    for doc_texts, doc_labels in zip(texts, labels):
+        clean_count = sum(1 for label in doc_labels if label == clean_label_index)
+        total_count = len(doc_labels)
+
+        # If all labels in the document are clean, mark it as all_clean
+        if clean_count < total_count:
+            mixed_docs.append((doc_texts, doc_labels))
+
+    # Separate texts and labels for the remaining documents
+    dataset_dict[split_name]["texts"], dataset_dict[split_name]["labels"] = zip(
+        *mixed_docs
+    )
+
+    return dataset_dict
+
+
 # Main function to load and preprocess the data
 def get_data(multiclass, downsample_ratio=0.1):
 
@@ -167,7 +192,7 @@ def get_data(multiclass, downsample_ratio=0.1):
     print(f"Initial clean ratio: {initial_clean_ratio}")
 
     if downsample_ratio < 1.0:
-        dataset_dict = downsample_documents_with_all_clean_labels(
+        dataset_dict = remove_all_clean_documents(
             dataset_dict, clean_label_index, downsample_ratio
         )
 

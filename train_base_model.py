@@ -25,8 +25,6 @@ from transformers import (
 
 from linear_dataset import get_data
 
-import torch
-
 
 # Calculate class weights based on the training dataset
 def calculate_class_weights(labels, num_labels):
@@ -142,11 +140,11 @@ def run(args):
         output_dir=saved_model_name,
         learning_rate=3e-5,  # Adjust this if needed for scaling
         eval_strategy="steps",
-        eval_steps=1000,
+        eval_steps=500,
         save_strategy="steps",
         logging_dir=f"{saved_model_name}/logs",
         logging_steps=100,
-        save_steps=1000,
+        save_steps=500,
         save_total_limit=2,
         load_best_model_at_end=True,
         metric_for_best_model="loss",

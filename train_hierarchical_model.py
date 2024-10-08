@@ -385,14 +385,25 @@ def train_model(
 def run(args):
     # Load and preprocess data
     data, label_encoder = get_data(args.multiclass, args.downsample_clean_ratio)
-    model_save_path = args.base_model + "_hierarchical"
+    model_save_path = (
+        args.base_model
+        + "_hierarchical"
+        + ("_focal" if args.use_focal_loss else "")
+        + ("_frozen_base" if args.freeze_base_model else "")
+    )
     class_names = label_encoder.classes_
-    loss_fn = FocalLoss(alpha=1, gamma=2, reduction="mean")
+
+    # If args.use_focal_loss is True, use Focal Loss instead of Cross Entropy
+    if args.use_focal_loss:
+        loss_fn = FocalLoss(alpha=1, gamma=2, reduction="mean")
+    else:
+        loss_fn = nn.CrossEntropyLoss()
 
     if args.train:
         model = DocumentClassifier(
             class_names=class_names,
             base_model=args.base_model,
+            freeze_base_model=args.freeze_base_model,
         ).to(device)
 
         train_model(

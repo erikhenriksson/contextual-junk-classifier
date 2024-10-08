@@ -49,15 +49,15 @@ def calculate_inverse_frequency_alpha(data, label_encoder):
     # Total number of labels
     total_labels = sum(label_counts.values())
 
-    # Calculate inverse frequency for each label
-    inverse_freq = {
-        label: total_labels / count for label, count in label_counts.items()
-    }
+    # Calculate inverse frequency for each encoded label
+    num_classes = len(label_encoder.classes_)
+    inverse_freq = [
+        total_labels / label_counts[i] if i in label_counts else 0
+        for i in range(num_classes)
+    ]
 
-    # Convert inverse frequencies to a tensor, in the order of the label_encoder classes
-    alpha = torch.tensor(
-        [inverse_freq[label] for label in label_encoder.classes_], dtype=torch.float
-    )
+    # Convert inverse frequencies to a tensor
+    alpha = torch.tensor(inverse_freq, dtype=torch.float)
 
     # Normalize alpha so that it sums to 1 (optional)
     alpha = alpha / alpha.sum()

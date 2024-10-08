@@ -3,6 +3,7 @@ import os
 os.environ["HF_HOME"] = ".hf/hf_home"
 
 import torch
+import torch.nn as nn
 import numpy as np
 from sklearn.metrics import (
     f1_score,
@@ -20,6 +21,7 @@ from transformers import (
     Trainer,
     TrainingArguments,
     AutoTokenizer,
+    AutoModel,
     AutoModelForSequenceClassification,
 )
 
@@ -32,6 +34,28 @@ def calculate_class_weights(labels, num_labels):
         class_weight="balanced", classes=np.arange(num_labels), y=labels
     )
     return torch.tensor(class_weights, dtype=torch.float)
+
+
+# Custom model with a classification head
+class CustomSequenceClassification(nn.Module):
+    def __init__(self, base_model, num_labels):
+        super(CustomSequenceClassification, self).__init__()
+        self.base_model = base_model
+        self.classifier = nn.Linear(base_model.config.hidden_size, num_labels)
+
+    def forward(self, input_ids=None, attention_mask=None, labels=None, **kwargs):
+        outputs = self.base_model(
+            input_ids=input_ids, attention_mask=attention_mask, **kwargs
+        )
+        pooled_output = outputs.last_hidden_state[:, 0]  # Use the CLS token's embedding
+        logits = self.classifier(pooled_output)
+
+        loss = None
+        if labels is not None:
+            loss_fct = nn.CrossEntropyLoss()
+            loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
+
+        return {"loss": loss, "logits": logits}
 
 
 class WeightedTrainer(Trainer):
@@ -126,10 +150,14 @@ def run(args):
     print("Example of a tokenized input:")
     print(dataset["train"][0])
 
-    # Load XLM-Roberta model for sequence classification
-    model = AutoModelForSequenceClassification.from_pretrained(
-        args.base_model if args.train else saved_model_name, num_labels=num_labels
-    )
+    # Choose the appropriate model
+    if args.embedding_model:
+        base_model = AutoModel.from_pretrained(args.base_model)
+        model = CustomSequenceClassification(base_model, num_labels=num_labels)
+    else:
+        model = AutoModelForSequenceClassification.from_pretrained(
+            args.base_model if args.train else saved_model_name, num_labels=num_labels
+        )
 
     # Calculate class weights based on the training labels
     train_labels = np.array(dataset["train"]["label"])

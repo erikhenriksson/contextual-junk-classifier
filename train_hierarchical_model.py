@@ -459,6 +459,7 @@ def run(args):
             class_names=class_names,
             base_model=args.base_model,
             freeze_base_model=args.freeze_base_model,
+            d_model=args.n_dim,
         ).to(device)
 
         train_model(

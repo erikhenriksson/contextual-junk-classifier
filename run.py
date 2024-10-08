@@ -18,6 +18,7 @@ parser.add_argument("--add_synthetic_data", action="store_true")
 parser.add_argument("--use_focal_loss", action="store_true")
 parser.add_argument("--freeze_base_model", action="store_true")
 parser.add_argument("--embedding_model", action="store_true")
+parser.add_argument("--n_dim", type=int, default=768)
 args = parser.parse_args()
 
 # Print the arguments in JSON format

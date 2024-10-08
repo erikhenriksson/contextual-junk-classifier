@@ -38,17 +38,31 @@ def calculate_class_weights(labels, num_labels):
 
 # Custom model with a classification head
 class CustomSequenceClassification(nn.Module):
-    def __init__(self, base_model, num_labels):
+    def __init__(self, base_model, num_labels, use_mean_pooling=True):
         super(CustomSequenceClassification, self).__init__()
         self.base_model = base_model
         self.num_labels = num_labels
+        self.use_mean_pooling = use_mean_pooling
         self.classifier = nn.Linear(base_model.config.hidden_size, num_labels)
 
     def forward(self, input_ids=None, attention_mask=None, labels=None, **kwargs):
         outputs = self.base_model(
             input_ids=input_ids, attention_mask=attention_mask, **kwargs
         )
-        pooled_output = outputs.last_hidden_state[:, 0]  # Use the CLS token's embedding
+
+        if self.use_mean_pooling:
+            # Use mean pooling
+            token_embeddings = outputs.last_hidden_state
+            input_mask_expanded = (
+                attention_mask.unsqueeze(-1).expand(token_embeddings.size()).float()
+            )
+            sum_embeddings = torch.sum(token_embeddings * input_mask_expanded, 1)
+            sum_mask = torch.clamp(input_mask_expanded.sum(1), min=1e-9)
+            pooled_output = sum_embeddings / sum_mask
+        else:
+            # Use the CLS token's embedding
+            pooled_output = outputs.last_hidden_state[:, 0]
+
         logits = self.classifier(pooled_output)
 
         loss = None

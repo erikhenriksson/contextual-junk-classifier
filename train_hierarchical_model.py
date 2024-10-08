@@ -66,19 +66,33 @@ def calculate_inverse_frequency_alpha(data, label_encoder):
 
 
 class FocalLoss(nn.Module):
-    def __init__(self, alpha=1, gamma=2, reduction="mean"):
+    def __init__(self, alpha=None, gamma=2, reduction="mean"):
         super(FocalLoss, self).__init__()
-        self.alpha = alpha
+        if alpha is not None:
+            self.alpha = alpha
+        else:
+            self.alpha = torch.tensor(1.0)  # default alpha
         self.gamma = gamma
         self.reduction = reduction
 
     def forward(self, logits, labels):
-        # Compute the cross entropy loss for each instance
+        # Get the log probabilities
+        log_probs = F.log_softmax(logits, dim=-1)
+
+        # Gather the log-probabilities of the correct class
         ce_loss = F.cross_entropy(logits, labels, reduction="none")
-        # Compute the prediction probabilities
         p_t = torch.exp(-ce_loss)
-        # Compute the focal loss by scaling the cross-entropy loss
-        focal_loss = self.alpha * (1 - p_t) ** self.gamma * ce_loss
+
+        # Apply per-class weighting
+        if isinstance(self.alpha, torch.Tensor):
+            # Ensure alpha is on the same device as logits and labels
+            self.alpha = self.alpha.to(logits.device)
+            alpha_t = self.alpha[labels]
+        else:
+            alpha_t = self.alpha
+
+        # Compute the focal loss
+        focal_loss = alpha_t * (1 - p_t) ** self.gamma * ce_loss
 
         if self.reduction == "mean":
             return focal_loss.mean()

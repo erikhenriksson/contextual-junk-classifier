@@ -411,7 +411,7 @@ def run(args):
             data["dev"],
             model,
             model_save_path,
-            AdamW(model.parameters(), lr=3e-5, weight_decay=0.01),
+            AdamW(model.parameters(), lr=1e-4, weight_decay=0.01),
             loss_fn,
         )
 

@@ -71,19 +71,18 @@ class FocalLoss(nn.Module):
         if alpha is not None:
             self.alpha = alpha
         else:
-            self.alpha = torch.tensor(1.0)  # default alpha
+            self.alpha = torch.tensor(1.0)  # default alpha if none is provided
         self.gamma = gamma
         self.reduction = reduction
 
     def forward(self, logits, labels):
-        # Get the log probabilities
-        log_probs = F.log_softmax(logits, dim=-1)
-
-        # Gather the log-probabilities of the correct class
+        # Calculate the cross-entropy loss for each instance
         ce_loss = F.cross_entropy(logits, labels, reduction="none")
+
+        # Calculate the probability of the true class with softmax
         p_t = torch.exp(-ce_loss)
 
-        # Apply per-class weighting
+        # If alpha is a tensor, apply per-class weighting
         if isinstance(self.alpha, torch.Tensor):
             # Ensure alpha is on the same device as logits and labels
             self.alpha = self.alpha.to(logits.device)

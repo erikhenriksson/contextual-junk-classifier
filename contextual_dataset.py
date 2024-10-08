@@ -159,6 +159,47 @@ def remove_specified_label_only_documents(dataset_dict, excluded_label_indexes):
     return dataset_dict
 
 
+# Function to chunk the training split with a minimum chunk size of 5
+def chunk_training_split(dataset_dict, chunk_size=20, min_chunk_size=5):
+    split_name = "train"
+    data = dataset_dict[split_name]
+    texts = data["texts"]
+    labels = data["labels"]
+    chunked_texts = []
+    chunked_labels = []
+
+    for doc_texts, doc_labels in zip(texts, labels):
+        # Initialize temporary storage for chunks
+        doc_chunks_text = []
+        doc_chunks_label = []
+
+        # Split the document into chunks of size chunk_size
+        for i in range(0, len(doc_texts), chunk_size):
+            chunk_text = doc_texts[i : i + chunk_size]
+            chunk_label = doc_labels[i : i + chunk_size]
+
+            # If this is the last chunk and it is smaller than min_chunk_size, append to the previous chunk
+            if len(chunk_text) < min_chunk_size and doc_chunks_text:
+                # Append the last chunk to the previous chunk
+                doc_chunks_text[-1].extend(chunk_text)
+                doc_chunks_label[-1].extend(chunk_label)
+            else:
+                # Otherwise, add as a new chunk
+                doc_chunks_text.append(chunk_text)
+                doc_chunks_label.append(chunk_label)
+
+        # Append the document chunks to the main list
+        chunked_texts.extend(doc_chunks_text)
+        chunked_labels.extend(doc_chunks_label)
+
+    # Update the dataset dictionary
+    dataset_dict[split_name]["texts"], dataset_dict[split_name]["labels"] = (
+        chunked_texts,
+        chunked_labels,
+    )
+    return dataset_dict
+
+
 # Main function to load and preprocess the data
 def get_data(multiclass, downsample_ratio=0.1):
 
@@ -177,12 +218,16 @@ def get_data(multiclass, downsample_ratio=0.1):
     # Find the label index for 'clean'
     clean_label_index = label_encoder.transform(["clean"])[0]
 
+    # Chunk the training split to chunks of 20 lines
+
     # Create DatasetDict with all splits
     dataset_dict = {
         "train": train_data,
         "test": test_data,
         "dev": dev_data,
     }
+
+    dataset_dict = chunk_training_split(dataset_dict)
 
     # First, calculate the initial clean vs other ratio for the "train" split
     initial_clean_count, initial_other_count, initial_clean_ratio = (
@@ -196,9 +241,6 @@ def get_data(multiclass, downsample_ratio=0.1):
     if downsample_ratio < 1.0:
         dataset_dict = remove_specified_label_only_documents(
             dataset_dict, [clean_label_index]
-        )
-        dataset_dict = remove_specified_label_only_documents(
-            dataset_dict, [clean_label_index, label_encoder.transform(["metadata"])[0]]
         )
 
         # Finally, calculate the clean vs other ratio again after downsampling

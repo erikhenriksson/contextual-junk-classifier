@@ -41,6 +41,7 @@ class CustomSequenceClassification(nn.Module):
     def __init__(self, base_model, num_labels):
         super(CustomSequenceClassification, self).__init__()
         self.base_model = base_model
+        self.num_labels = num_labels
         self.classifier = nn.Linear(base_model.config.hidden_size, num_labels)
 
     def forward(self, input_ids=None, attention_mask=None, labels=None, **kwargs):

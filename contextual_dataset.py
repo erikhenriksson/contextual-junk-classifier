@@ -192,11 +192,9 @@ def get_data(multiclass, downsample_ratio=0.1):
     print(f"Initial clean ratio: {initial_clean_ratio}")
 
     if downsample_ratio < 1.0:
+        dataset_dict = remove_all_clean_documents(dataset_dict, clean_label_index)
         dataset_dict = remove_all_clean_documents(
-            dataset_dict, clean_label_index, downsample_ratio
-        )
-        dataset_dict = remove_all_clean_documents(
-            dataset_dict, label_encoder.transform(["metadata"])[0], downsample_ratio
+            dataset_dict, label_encoder.transform(["metadata"])[0]
         )
 
         # Finally, calculate the clean vs other ratio again after downsampling

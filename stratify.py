@@ -31,7 +31,7 @@ taxonomy = [
     "noise",
 ]
 # Path to the JSONL file
-file_path = "../llm-junklabeling/output.jsonl"
+file_path = "../llm-junklabeling/output_fixed.jsonl"
 
 # Initialize an empty list to store the data
 data = []

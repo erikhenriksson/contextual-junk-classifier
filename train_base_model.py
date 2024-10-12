@@ -150,7 +150,10 @@ def run(args):
     num_labels = len(label_encoder.classes_)
 
     # Tokenize dataset
-    tokenizer = AutoTokenizer.from_pretrained(args.base_model, trust_remote_code=True)
+    if base_model == "jxm/cde-small-v1":
+        tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
+    else:
+        tokenizer = AutoTokenizer.from_pretrained(args.base_model)
 
     def tokenize(batch):
         return tokenizer(

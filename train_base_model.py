@@ -230,6 +230,9 @@ def run(args):
             tokenizer=tokenizer,
             compute_metrics=lambda pred: compute_metrics(pred, label_encoder),
             callbacks=[early_stopping],
+            compute_loss=lambda model, inputs: nn.CrossEntropyLoss(label_smoothing=0.1)(
+                model(**inputs).logits, inputs["labels"]
+            ),
         )
 
     if args.train:

@@ -95,10 +95,10 @@ class WeightedTrainer(Trainer):
 
 
 class CustomTrainer(Trainer):
-    def __init__(self, *args, label_smoothing=0.0, **kwargs):
+    def __init__(self, *args, label_smoothing=0.1, **kwargs):
         super().__init__(*args, **kwargs)
         self.label_smoothing = label_smoothing
-        self.loss_fct = CrossEntropyLoss(label_smoothing=self.label_smoothing)
+        self.loss_fct = CrossEntropyLoss(label_smoothing=0.1)
 
     def compute_loss(self, model, inputs, return_outputs=False):
         # Extract labels from inputs

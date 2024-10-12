@@ -150,7 +150,7 @@ def run(args):
     num_labels = len(label_encoder.classes_)
 
     # Tokenize dataset
-    tokenizer = AutoTokenizer.from_pretrained(args.base_model)
+    tokenizer = AutoTokenizer.from_pretrained(args.base_model, trust_remote_code=True)
 
     def tokenize(batch):
         return tokenizer(
@@ -205,7 +205,7 @@ def run(args):
     )
 
     # Define early stopping callback
-    early_stopping = EarlyStoppingCallback(early_stopping_patience=3)
+    early_stopping = EarlyStoppingCallback(early_stopping_patience=5)
 
     if args.use_class_weights:
         trainer = WeightedTrainer(

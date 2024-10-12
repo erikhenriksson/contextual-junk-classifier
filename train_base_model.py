@@ -4,6 +4,7 @@ os.environ["HF_HOME"] = ".hf/hf_home"
 
 import torch
 import torch.nn as nn
+from torch.nn import CrossEntropyLoss
 import numpy as np
 from sklearn.metrics import (
     f1_score,
@@ -89,6 +90,26 @@ class WeightedTrainer(Trainer):
             weight=self.class_weights.to(logits.device)
         )
         loss = loss_fct(logits, labels)
+
+        return (loss, outputs) if return_outputs else loss
+
+
+class CustomTrainer(Trainer):
+    def __init__(self, *args, label_smoothing=0.0, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.label_smoothing = label_smoothing
+        self.loss_fct = CrossEntropyLoss(label_smoothing=self.label_smoothing)
+
+    def compute_loss(self, model, inputs, return_outputs=False):
+        # Extract labels from inputs
+        labels = inputs.pop("labels")
+
+        # Forward pass
+        outputs = model(**inputs)
+        logits = outputs.get("logits")
+
+        # Compute loss with label smoothing
+        loss = self.loss_fct(logits, labels)
 
         return (loss, outputs) if return_outputs else loss
 
@@ -222,7 +243,7 @@ def run(args):
             class_weights=class_weights,
         )
     else:
-        trainer = Trainer(
+        trainer = CustomTrainer(
             model=model,
             args=training_args,
             train_dataset=dataset["train"],
@@ -230,9 +251,6 @@ def run(args):
             tokenizer=tokenizer,
             compute_metrics=lambda pred: compute_metrics(pred, label_encoder),
             callbacks=[early_stopping],
-            compute_loss=lambda model, inputs: nn.CrossEntropyLoss(label_smoothing=0.1)(
-                model(**inputs).logits, inputs["labels"]
-            ),
         )
 
     if args.train:

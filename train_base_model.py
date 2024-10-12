@@ -173,8 +173,8 @@ def run(args):
         base_model = AutoModel.from_pretrained(
             args.base_model,
             trust_remote_code=True,
-            use_memory_efficient_attention=False,
-            unpad_inputs=False,
+            # use_memory_efficient_attention=False,
+            # unpad_inputs=False,
         )
         model = CustomSequenceClassification(base_model, num_labels=num_labels)
     else:

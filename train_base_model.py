@@ -150,7 +150,7 @@ def run(args):
     num_labels = len(label_encoder.classes_)
 
     # Tokenize dataset
-    if base_model == "jxm/cde-small-v1":
+    if args.base_model == "jxm/cde-small-v1":
         tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
     else:
         tokenizer = AutoTokenizer.from_pretrained(args.base_model)

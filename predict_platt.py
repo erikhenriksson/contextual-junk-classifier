@@ -81,17 +81,24 @@ def run(args):
                 outputs.logits if hasattr(outputs, "logits") else outputs[0]
             )  # Access logits directly
 
-            # print the length of each logit
-            print(logits.shape)
+            # Use only the [CLS] token's logit (first token)
+            cls_logits = logits[:, 0, :]  # Shape: [batch_size, hidden_size]
+
+            # If necessary, add a linear layer to map down to single logit
+            # (Assuming binary classification: add this layer to your model if it doesn't already exist)
+            if cls_logits.shape[-1] > 1:  # If it's more than one logit
+                cls_logits = cls_logits[
+                    :, 0
+                ]  # Take the first hidden state as a single logit
 
             # Store logits
-            logits_list.append(logits.cpu().numpy())
+            logits_list.append(cls_logits.cpu().numpy())
 
     # Convert lists to arrays
     logits = np.concatenate(logits_list, axis=0)
 
     # Use only the logits for the positive class (index 1, assuming the second column corresponds to non-clean class)
-    positive_logits = logits[:, 1]
+    positive_logits = logits[:, 0]  # Adjusted to take the single logit per example
 
     # Train Platt scaling logistic regression on the logits using the binary test_labels
     platt_scaler = LogisticRegression(C=1e10, solver="lbfgs")

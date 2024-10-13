@@ -51,10 +51,13 @@ def run(args):
     with torch.no_grad():
         for batch in test_loader:
             # Move batch to device (if using GPU)
-            print(batch)
+            inputs = {
+                "input_ids": batch["input_ids"],
+                "attention_mask": batch["attention_mask"],
+            }
 
             # Forward pass
-            outputs = model(**batch)
+            outputs = model(**inputs)
             logits = (
                 outputs.logits if hasattr(outputs, "logits") else outputs[0]
             )  # Access logits directly

@@ -3,7 +3,8 @@ import json
 
 from train_base_model import run as run_base
 from train_hierarchical_model import run as run_hierarchical
-from train_embedding_classifier import run as run_embedding
+
+# from train_embedding_classifier import run as run_embedding
 
 # Parse arguments
 parser = argparse.ArgumentParser()

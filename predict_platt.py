@@ -81,6 +81,9 @@ def run(args):
                 outputs.logits if hasattr(outputs, "logits") else outputs[0]
             )  # Access logits directly
 
+            # print the length of each logit
+            print(logits.shape)
+
             # Store logits
             logits_list.append(logits.cpu().numpy())
 

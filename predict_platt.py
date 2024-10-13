@@ -1,5 +1,9 @@
 from linear_dataset import get_data
-from transformers import AutoTokenizer, AutoModel, DataCollatorWithPadding
+from transformers import (
+    AutoTokenizer,
+    AutoModelForSequenceClassification,
+    DataCollatorWithPadding,
+)
 from sklearn.linear_model import LogisticRegression
 import torch
 import numpy as np
@@ -36,34 +40,26 @@ def run(args):
     data_collator = DataCollatorWithPadding(tokenizer=tokenizer)
 
     # Load model
+    # Load the model with the classification head
     if "stella" in args.base_model:
-        model = AutoModel.from_pretrained(
+        model = AutoModelForSequenceClassification.from_pretrained(
             args.local_model,
             trust_remote_code=True,
             use_memory_efficient_attention=False,
             unpad_inputs=False,
         ).to("cuda")
-
     else:
-        model = AutoModel.from_pretrained(args.local_model).to("cuda")
+        model = AutoModelForSequenceClassification.from_pretrained(args.local_model).to(
+            "cuda"
+        )
+
     model.half()
-    # Place model in evaluation mode
     model.eval()
-
     print(model)
-    exit()
-
-    # Determine the index for the "clean" label
-    clean_label_index = label_encoder.transform(["clean"])[0]
-
-    # Convert test labels to binary format based on the clean_label_index
-    test_labels = np.array(
-        [0 if label == clean_label_index else 1 for label in test_dataset["label"]]
-    )
 
     # Create a DataLoader for the test dataset
     test_loader = DataLoader(
-        test_dataset, batch_size=16, shuffle=False, collate_fn=data_collator
+        test_dataset, batch_size=64, shuffle=False, collate_fn=data_collator
     )
 
     # Store logits and texts
@@ -78,32 +74,27 @@ def run(args):
                 "attention_mask": batch["attention_mask"].to(model.device),
             }
 
-            # Forward pass
+            # Forward pass through the fine-tuned model with classification head
             outputs = model(**inputs)
-            logits = (
-                outputs.logits if hasattr(outputs, "logits") else outputs[0]
-            )  # Access logits directly
-
-            # Use only the [CLS] token's logit (first token)
-            cls_logits = logits[:, 0, :]  # Shape: [batch_size, hidden_size]
-
-            # If necessary, add a linear layer to map down to single logit
-            # (Assuming binary classification: add this layer to your model if it doesn't already exist)
-            if cls_logits.shape[-1] > 1:  # If it's more than one logit
-                cls_logits = cls_logits[
-                    :, 0
-                ]  # Take the first hidden state as a single logit
+            logits = outputs.logits  # Directly access logits (shape: [batch_size, 9])
 
             # Store logits
-            logits_list.append(cls_logits.cpu().numpy())
+            logits_list.append(logits.cpu().numpy())
 
     # Convert lists to arrays
-    logits = np.concatenate(logits_list, axis=0)
+    logits = np.concatenate(logits_list, axis=0)  # Shape: [num_samples, 9]
 
-    # Use only the logits for the positive class (index 1, assuming the second column corresponds to non-clean class)
-    positive_logits = logits[:, 0]  # Adjusted to take the single logit per example
+    # For binary calculation: Use logits for the specific target class (e.g., "clean")
+    clean_label_index = label_encoder.transform(["clean"])[0]
+    target_class_index = clean_label_index  # Index of the class for binary separation
+    positive_logits = logits[:, target_class_index]  # Shape: [num_samples]
 
-    # Train Platt scaling logistic regression on the logits using the binary test_labels
+    # Transform labels to binary based on the target class
+    test_labels = np.array(
+        [0 if label == target_class_index else 1 for label in test_dataset["label"]]
+    )
+
+    # Apply Platt scaling logistic regression on the binary logits
     platt_scaler = LogisticRegression(C=1e10, solver="lbfgs")
     platt_scaler.fit(positive_logits.reshape(-1, 1), test_labels)
 

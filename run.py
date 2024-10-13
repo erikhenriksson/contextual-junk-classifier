@@ -3,6 +3,7 @@ import json
 
 from train_base_model import run as run_base
 from train_hierarchical_model import run as run_hierarchical
+from predict_platt import run as run_platt
 
 # from train_embedding_classifier import run as run_embedding
 
@@ -13,7 +14,7 @@ parser.add_argument(
     "--model",
     type=str,
     default="base",
-    choices=["base", "hierarchical", "embedding_classifier"],
+    choices=["base", "hierarchical", "embedding_classifier", "platt"],
 )
 parser.add_argument("--train", action="store_true")
 parser.add_argument("--base_model", type=str, default="xlm-roberta-base")
@@ -35,5 +36,7 @@ if args.model == "base":
     run_base(args)
 elif args.model == "hierarchical":
     run_hierarchical(args)
+elif args.model == "platt":
+    run_platt(args)
 # elif args.model == "embedding_classifier":
 #    run_embedding(args)

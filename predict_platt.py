@@ -97,7 +97,7 @@ def run(args):
     calibrated_probs = platt_scaler.predict_proba(positive_logits.reshape(-1, 1))[:, 1]
 
     # Save texts and calibrated probabilities to a JSON Lines file
-    output_file = "calibrated_results.jsonl"
+    output_file = f"calibrated_results_{args.local_model}.jsonl"
     with open(output_file, "w") as f:
         for text, prob in zip(texts, calibrated_probs):
             json_line = json.dumps({"text": text, "calibrated_probability": prob})

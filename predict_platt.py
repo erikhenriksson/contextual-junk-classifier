@@ -50,6 +50,9 @@ def run(args):
     # Place model in evaluation mode
     model.eval()
 
+    print(model)
+    exit()
+
     # Determine the index for the "clean" label
     clean_label_index = label_encoder.transform(["clean"])[0]
 

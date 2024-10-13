@@ -168,7 +168,7 @@ def run(args):
     class_weights = "_class_weights" if args.use_class_weights else ""
     use_synth = "_synth" if args.add_synthetic_data else ""
     smooth = f"_smoothing-{args.label_smoothing}" if args.label_smoothing > 0.0 else ""
-    saved_model_name = f"{args.base_model.replace('/', '_')}base_model{suffix}_clean_ratio_{args.downsample_clean_ratio}{class_weights}{smooth}{use_synth}"
+    saved_model_name = f"newdata_{args.base_model.replace('/', '_')}_base_model{suffix}_clean_ratio_{args.downsample_clean_ratio}{class_weights}{smooth}{use_synth}"
 
     num_labels = len(label_encoder.classes_)
 

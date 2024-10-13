@@ -42,9 +42,10 @@ def run(args):
             trust_remote_code=True,
             use_memory_efficient_attention=False,
             unpad_inputs=False,
-        )
+        ).to("cuda")
+
     else:
-        model = AutoModel.from_pretrained(args.local_model)
+        model = AutoModel.from_pretrained(args.local_model).to("cuda")
 
     # Place model in evaluation mode
     model.eval()

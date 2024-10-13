@@ -5,7 +5,7 @@ import torch
 import numpy as np
 from torch.utils.data import DataLoader
 import json
-import datasets
+from tqdm import tqdm
 
 
 def run(args):
@@ -36,7 +36,15 @@ def run(args):
     data_collator = DataCollatorWithPadding(tokenizer=tokenizer)
 
     # Load model
-    model = AutoModel.from_pretrained(args.local_model)
+    if "stella" in args.base_model:
+        model = AutoModel.from_pretrained(
+            args.local_model,
+            trust_remote_code=True,
+            use_memory_efficient_attention=False,
+            unpad_inputs=False,
+        )
+    else:
+        model = AutoModel.from_pretrained(args.local_model)
 
     # Place model in evaluation mode
     model.eval()
@@ -51,7 +59,7 @@ def run(args):
 
     # Create a DataLoader for the test dataset
     test_loader = DataLoader(
-        test_dataset, batch_size=32, shuffle=False, collate_fn=data_collator
+        test_dataset, batch_size=64, shuffle=False, collate_fn=data_collator
     )
 
     # Store logits and texts
@@ -59,7 +67,7 @@ def run(args):
     texts = dataset_test["text"]  # Access original texts directly from the dataset
 
     with torch.no_grad():
-        for batch in test_loader:
+        for batch in tqdm(test_loader, desc="Processing batches"):
             # Move batch to device (if using GPU)
             inputs = {
                 "input_ids": batch["input_ids"].to(model.device),

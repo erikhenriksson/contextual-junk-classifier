@@ -52,7 +52,11 @@ def run(args):
         for batch in test_loader:
             # Move batch to device (if using GPU)
             inputs = {
-                k: (v.to(args.device) if isinstance(v, torch.Tensor) else v)
+                k: (
+                    torch.tensor(v).to(args.device)
+                    if isinstance(v, list)
+                    else v.to(args.device)
+                )
                 for k, v in batch.items()
                 if k in tokenizer.model_input_names
             }

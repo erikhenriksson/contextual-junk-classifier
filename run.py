@@ -28,6 +28,7 @@ parser.add_argument("--embedding_model", action="store_true")
 parser.add_argument("--n_dim", type=int, default=768)
 parser.add_argument("--label_smoothing", type=float, default=0.0)
 parser.add_argument("--device", type=str, default="cuda")
+parser.add_argument("--patience", type=int, default=5)
 args = parser.parse_args()
 
 # Print the arguments in JSON format

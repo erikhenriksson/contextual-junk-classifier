@@ -95,10 +95,10 @@ class WeightedTrainer(Trainer):
 
 
 class CustomTrainer(Trainer):
-    def __init__(self, *args, label_smoothing=0.1, **kwargs):
+    def __init__(self, *args, label_smoothing, **kwargs):
         super().__init__(*args, **kwargs)
         self.label_smoothing = label_smoothing
-        self.loss_fct = CrossEntropyLoss(label_smoothing=0.1)
+        self.loss_fct = CrossEntropyLoss(label_smoothing=label_smoothing)
 
     def compute_loss(self, model, inputs, return_outputs=False):
         # Extract labels from inputs
@@ -166,7 +166,9 @@ def run(args):
 
     suffix = "_multiclass" if args.multiclass else "_binary"
     class_weights = "_class_weights" if args.use_class_weights else ""
-    saved_model_name = f"{args.base_model.replace('/', '_')}base_model{suffix}_clean_ratio_{args.downsample_clean_ratio}{class_weights}"
+    use_synth = "_synth" if args.add_synthetic_data else ""
+    smooth = f"_smoothing-{args.label_smoothing}" if args.label_smoothing > 0.0 else ""
+    saved_model_name = f"{args.base_model.replace('/', '_')}base_model{suffix}_clean_ratio_{args.downsample_clean_ratio}{class_weights}{smooth}{use_synth}"
 
     num_labels = len(label_encoder.classes_)
 
@@ -251,6 +253,7 @@ def run(args):
             tokenizer=tokenizer,
             compute_metrics=lambda pred: compute_metrics(pred, label_encoder),
             callbacks=[early_stopping],
+            label_smoothing=0.1,
         )
 
     if args.train:

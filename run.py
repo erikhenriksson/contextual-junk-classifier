@@ -34,5 +34,5 @@ if args.model == "base":
     run_base(args)
 elif args.model == "hierarchical":
     run_hierarchical(args)
-elif args.model == "embedding_classifier":
-    run_embedding(args)
+# elif args.model == "embedding_classifier":
+#    run_embedding(args)

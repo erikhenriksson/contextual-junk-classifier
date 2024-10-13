@@ -3,12 +3,16 @@ import json
 
 from train_base_model import run as run_base
 from train_hierarchical_model import run as run_hierarchical
+from train_embedding_classifier import run as run_embedding
 
 # Parse arguments
 parser = argparse.ArgumentParser()
 parser.add_argument("--multiclass", action="store_true")
 parser.add_argument(
-    "--model", type=str, default="base", choices=["base", "hierarchical"]
+    "--model",
+    type=str,
+    default="base",
+    choices=["base", "hierarchical", "embedding_classifier"],
 )
 parser.add_argument("--train", action="store_true")
 parser.add_argument("--base_model", type=str, default="xlm-roberta-base")
@@ -19,6 +23,7 @@ parser.add_argument("--use_focal_loss", action="store_true")
 parser.add_argument("--freeze_base_model", action="store_true")
 parser.add_argument("--embedding_model", action="store_true")
 parser.add_argument("--n_dim", type=int, default=768)
+parser.add_argument("--label_smoothing", type=float, default=0.0)
 args = parser.parse_args()
 
 # Print the arguments in JSON format
@@ -28,3 +33,5 @@ if args.model == "base":
     run_base(args)
 elif args.model == "hierarchical":
     run_hierarchical(args)
+elif args.model == "embedding_classifier":
+    run_embedding(args)

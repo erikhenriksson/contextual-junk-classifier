@@ -46,7 +46,7 @@ def run(args):
 
     else:
         model = AutoModel.from_pretrained(args.local_model).to("cuda")
-
+    model.half()
     # Place model in evaluation mode
     model.eval()
 
@@ -68,7 +68,6 @@ def run(args):
     texts = dataset_test["text"]  # Access original texts directly from the dataset
 
     with torch.no_grad():
-
         for batch in tqdm(test_loader, desc="Processing batches"):
             # Move batch to device (if using GPU)
             inputs = {
@@ -77,8 +76,7 @@ def run(args):
             }
 
             # Forward pass
-            with torch.amp.cuda.amp.autocast():
-                outputs = model(**inputs)
+            outputs = model(**inputs)
             logits = (
                 outputs.logits if hasattr(outputs, "logits") else outputs[0]
             )  # Access logits directly

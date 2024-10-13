@@ -260,7 +260,7 @@ def run(args):
             tokenizer=tokenizer,
             compute_metrics=lambda pred: compute_metrics(pred, label_encoder),
             callbacks=[early_stopping],
-            label_smoothing=0.1,
+            label_smoothing=args.label_smoothing,
         )
 
     if args.train:

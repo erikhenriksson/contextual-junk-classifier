@@ -19,8 +19,8 @@ def run(args):
         )
 
     # Tokenize dataset
-    dataset = data.map(tokenize, batched=True)
-    test_dataset = dataset["test"]
+    dataset_test = data["test"]
+    test_dataset = dataset_test.map(tokenize, batched=True).to(torch.device("cuda"))
 
     # Load model
     model = AutoModel.from_pretrained(
@@ -51,14 +51,9 @@ def run(args):
     with torch.no_grad():
         for batch in test_loader:
             # Move batch to device (if using GPU)
-            inputs = {
-                k: v.to(args.device)
-                for k, v in batch.items()
-                if k in tokenizer.model_input_names
-            }
 
             # Forward pass
-            outputs = model(**inputs)
+            outputs = model(**batch)
             logits = (
                 outputs.logits if hasattr(outputs, "logits") else outputs[0]
             )  # Access logits directly

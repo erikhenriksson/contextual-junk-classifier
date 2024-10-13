@@ -20,7 +20,7 @@ def run(args):
 
     # Tokenize dataset
     dataset_test = data["test"]
-    test_dataset = dataset_test.map(tokenize, batched=True).to(torch.device("cuda"))
+    test_dataset = dataset_test.map(tokenize, batched=True)
 
     # Load model
     model = AutoModel.from_pretrained(
@@ -51,6 +51,7 @@ def run(args):
     with torch.no_grad():
         for batch in test_loader:
             # Move batch to device (if using GPU)
+            batch = {k: v.to(model.device) for k, v in batch.items()}
 
             # Forward pass
             outputs = model(**batch)

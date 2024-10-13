@@ -60,7 +60,7 @@ def run(args):
 
     # Create a DataLoader for the test dataset
     test_loader = DataLoader(
-        test_dataset, batch_size=64, shuffle=False, collate_fn=data_collator
+        test_dataset, batch_size=32, shuffle=False, collate_fn=data_collator
     )
 
     # Store logits and texts

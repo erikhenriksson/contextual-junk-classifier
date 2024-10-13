@@ -5,6 +5,7 @@ import torch
 import numpy as np
 from torch.utils.data import DataLoader
 import json
+import datasets
 
 
 def run(args):
@@ -15,13 +16,23 @@ def run(args):
 
     def tokenize(batch):
         # Ensure padding and truncation are applied directly in the tokenizer
-        return tokenizer(batch["text"], padding=True, truncation=True, max_length=512)
+        return tokenizer(
+            batch["text"], padding="max_length", truncation=True, max_length=512
+        )
 
     # Tokenize dataset
     dataset_test = data["test"]
     test_dataset = dataset_test.map(tokenize, batched=True)
 
-    # Define data collator, which will handle any remaining padding needs
+    # Remove columns that are not tensors
+    test_dataset = test_dataset.remove_columns(["text"])
+
+    # Set dataset format to PyTorch tensors
+    test_dataset.set_format(
+        type="torch", columns=["input_ids", "attention_mask", "label"]
+    )
+
+    # Define data collator to handle any remaining padding needs
     data_collator = DataCollatorWithPadding(tokenizer=tokenizer)
 
     # Load model
@@ -45,7 +56,7 @@ def run(args):
 
     # Store logits and texts
     logits_list = []
-    texts = test_dataset["text"]
+    texts = dataset_test["text"]  # Access original texts directly from the dataset
 
     with torch.no_grad():
         for batch in test_loader:

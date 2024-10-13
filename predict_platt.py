@@ -14,15 +14,14 @@ def run(args):
     tokenizer = AutoTokenizer.from_pretrained(args.base_model)
 
     def tokenize(batch):
-        return tokenizer(
-            batch["text"], padding="longest", truncation=True, max_length=512
-        )
+        # Ensure padding and truncation are applied directly in the tokenizer
+        return tokenizer(batch["text"], padding=True, truncation=True, max_length=512)
 
     # Tokenize dataset
     dataset_test = data["test"]
     test_dataset = dataset_test.map(tokenize, batched=True)
 
-    # Define data collator
+    # Define data collator, which will handle any remaining padding needs
     data_collator = DataCollatorWithPadding(tokenizer=tokenizer)
 
     # Load model

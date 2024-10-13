@@ -193,12 +193,19 @@ def run(args):
 
     # Choose the appropriate model
     if args.embedding_model:
-        base_model = AutoModel.from_pretrained(
-            args.base_model,
-            trust_remote_code=True,
-            # use_memory_efficient_attention=False,
-            # unpad_inputs=False,
-        )
+
+        if "stella" in args.base_model:
+            base_model = AutoModel.from_pretrained(
+                "bert-base-uncased",
+                trust_remote_code=True,
+                use_memory_efficient_attention=False,
+                unpad_inputs=False,
+            )
+        else:
+            base_model = AutoModel.from_pretrained(
+                args.base_model,
+                trust_remote_code=True,
+            )
         model = CustomSequenceClassification(base_model, num_labels=num_labels)
     else:
         model = AutoModelForSequenceClassification.from_pretrained(

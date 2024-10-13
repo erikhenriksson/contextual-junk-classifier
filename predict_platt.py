@@ -51,10 +51,14 @@ def run(args):
     with torch.no_grad():
         for batch in test_loader:
             # Move batch to device (if using GPU)
-            batch = {k: v.to(model.device) for k, v in batch.items()}
+            inputs = {
+                k: (v.to(args.device) if isinstance(v, torch.Tensor) else v)
+                for k, v in batch.items()
+                if k in tokenizer.model_input_names
+            }
 
             # Forward pass
-            outputs = model(**batch)
+            outputs = model(**inputs)
             logits = (
                 outputs.logits if hasattr(outputs, "logits") else outputs[0]
             )  # Access logits directly

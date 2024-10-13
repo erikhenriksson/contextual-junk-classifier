@@ -1,5 +1,5 @@
 from linear_dataset import get_data
-from transformers import AutoTokenizer, AutoModel
+from transformers import AutoTokenizer, AutoModel, DataCollatorWithPadding
 from sklearn.linear_model import LogisticRegression
 import torch
 import numpy as np
@@ -22,13 +22,11 @@ def run(args):
     dataset_test = data["test"]
     test_dataset = dataset_test.map(tokenize, batched=True)
 
+    # Define data collator
+    data_collator = DataCollatorWithPadding(tokenizer=tokenizer)
+
     # Load model
-    model = AutoModel.from_pretrained(
-        args.local_model,
-        # trust_remote_code=True,
-        # use_memory_efficient_attention=False,
-        # unpad_inputs=False,
-    )
+    model = AutoModel.from_pretrained(args.local_model)
 
     # Place model in evaluation mode
     model.eval()
@@ -42,7 +40,9 @@ def run(args):
     )
 
     # Create a DataLoader for the test dataset
-    test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False)
+    test_loader = DataLoader(
+        test_dataset, batch_size=32, shuffle=False, collate_fn=data_collator
+    )
 
     # Store logits and texts
     logits_list = []
@@ -52,8 +52,8 @@ def run(args):
         for batch in test_loader:
             # Move batch to device (if using GPU)
             inputs = {
-                "input_ids": batch["input_ids"],
-                "attention_mask": batch["attention_mask"],
+                "input_ids": batch["input_ids"].to(model.device),
+                "attention_mask": batch["attention_mask"].to(model.device),
             }
 
             # Forward pass

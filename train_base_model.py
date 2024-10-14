@@ -7,6 +7,7 @@ import torch.nn as nn
 from torch.nn import CrossEntropyLoss
 import numpy as np
 from transformers import PreTrainedModel
+from transformers import AutoConfig, AutoModel
 from sklearn.metrics import (
     f1_score,
     accuracy_score,
@@ -41,7 +42,7 @@ def calculate_class_weights(labels, num_labels):
 # Custom model with a classification head
 class CustomSequenceClassification(PreTrainedModel):
     def __init__(self, base_model, num_labels, use_mean_pooling=True):
-        super(CustomSequenceClassification, self).__init__()
+        super(CustomSequenceClassification, self).__init__(base_model.config)
         self.base_model = base_model
         self.num_labels = num_labels
         self.use_mean_pooling = use_mean_pooling

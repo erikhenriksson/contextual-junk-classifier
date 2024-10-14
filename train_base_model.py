@@ -50,15 +50,13 @@ class CustomSequenceClassification(PreTrainedModel):
 
         super(CustomSequenceClassification, self).__init__(config)
 
-        self.base_model = base_model
-        print(base_model)
-        exit()
+        self.transformer = base_model
         self.num_labels = num_labels
         self.use_mean_pooling = use_mean_pooling
         self.classifier = nn.Linear(hidden_size, num_labels)
 
     def forward(self, input_ids=None, attention_mask=None, labels=None, **kwargs):
-        outputs = self.base_model(
+        outputs = self.transformer(
             input_ids=input_ids, attention_mask=attention_mask, **kwargs
         )
 

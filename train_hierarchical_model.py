@@ -109,42 +109,38 @@ class DocumentClassifier(nn.Module):
         base_model,
         freeze_base_model=True,
         d_model=768,
+        max_position_embeddings=32,
     ):
         super(DocumentClassifier, self).__init__()
         self.num_labels = len(class_names)
         self.class_names = class_names
         self.line_model = AutoModel.from_pretrained(base_model)
         self.base_model_name = self.line_model.config._name_or_path
-        # Optionally freeze the base model
         if freeze_base_model:
             for param in self.line_model.parameters():
                 param.requires_grad = False
 
-        # Transformer encoder with multiple layers
+        # Positional embeddings
+        self.positional_embeddings = nn.Embedding(max_position_embeddings, d_model)
+
         encoder_layer = nn.TransformerEncoderLayer(d_model=d_model, nhead=8)
         self.transformer_encoder = nn.TransformerEncoder(encoder_layer, num_layers=12)
 
-        # Layer Normalization and Dropout
         self.layer_norm = nn.LayerNorm(d_model)
-        self.dropout = nn.Dropout(p=0.1)  # Dropout probability of 0.1
+        self.dropout = nn.Dropout(p=0.1)
 
-        # Final linear classification layer
         self.linear = nn.Linear(d_model, self.num_labels)
 
-        # Batch size for tokenization, embedding extraction, and Transformer
         self.batch_size = 32
         self.max_length = 512
         self.tokenizer = AutoTokenizer.from_pretrained(self.base_model_name)
 
     def forward(self, document_lines):
-        all_logits = []  # Store logits from all batches
+        all_logits = []
 
-        # Process document lines in batches of size self.batch_size
         for i in range(0, len(document_lines), self.batch_size):
-            # Get the current batch of document lines
             batch_lines = document_lines[i : i + self.batch_size]
 
-            # Step 1: Tokenize the current batch of lines
             encoded_inputs = self.tokenizer(
                 batch_lines,
                 return_tensors="pt",
@@ -153,38 +149,27 @@ class DocumentClassifier(nn.Module):
                 max_length=self.max_length,
             ).to(self.line_model.device)
 
-            # Step 2: Extract embeddings from XLM-Roberta for the current batch
             outputs = self.line_model(
                 input_ids=encoded_inputs["input_ids"],
                 attention_mask=encoded_inputs["attention_mask"],
             )
-            embeddings = outputs.last_hidden_state[
-                :, 0, :
-            ]  # [CLS] token embeddings, Shape: [batch_size, d_model]
+            embeddings = outputs.last_hidden_state[:, 0, :]
 
-            # Step 3: Add a batch dimension for transformer encoder input
-            embeddings = embeddings.unsqueeze(0)  # Shape: [1, batch_size, d_model]
+            # Add positional embeddings within the batch scope
+            positions = torch.arange(0, embeddings.size(0), device=embeddings.device)
+            positions = self.positional_embeddings(positions)
+            embeddings += positions
 
-            # Step 4: Pass through Transformer Encoder
-            encoded_output = self.transformer_encoder(
-                embeddings
-            )  # Shape: [1, batch_size, d_model]
+            embeddings = embeddings.unsqueeze(0)
 
-            # Step 5: Apply Layer Normalization and Dropout
+            encoded_output = self.transformer_encoder(embeddings)
             encoded_output = self.layer_norm(encoded_output)
             encoded_output = self.dropout(encoded_output)
 
-            # Step 6: Apply the final linear classification layer
-            logits = self.linear(encoded_output)  # Shape: [1, batch_size, num_labels]
+            logits = self.linear(encoded_output)
+            all_logits.append(logits.squeeze(0))
 
-            # Remove the batch dimension and store logits for this batch
-            all_logits.append(logits.squeeze(0))  # Shape: [batch_size, num_labels]
-
-        # Step 7: Concatenate logits for the entire document
-        all_logits = torch.cat(
-            all_logits, dim=0
-        )  # Shape: [total_num_lines, num_labels]
-
+        all_logits = torch.cat(all_logits, dim=0)
         return all_logits
 
     def save_pretrained(self, save_directory):
@@ -202,6 +187,7 @@ class DocumentClassifier(nn.Module):
                 "transformer_encoder": self.transformer_encoder.state_dict(),
                 "layer_norm": self.layer_norm.state_dict(),
                 "linear": self.linear.state_dict(),
+                "positional_embeddings": self.positional_embeddings.state_dict(),
             },
             model_save_path,
         )
@@ -250,6 +236,9 @@ class DocumentClassifier(nn.Module):
         model.transformer_encoder.load_state_dict(model_state["transformer_encoder"])
         model.layer_norm.load_state_dict(model_state["layer_norm"])
         model.linear.load_state_dict(model_state["linear"])
+        model.positional_embeddings.load_state_dict(
+            model_state["positional_embeddings"]
+        )
 
         # Move the model to the specified device
         model = model.to(device)

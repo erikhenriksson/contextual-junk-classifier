@@ -32,14 +32,20 @@ from linear_dataset import get_data
 
 
 class CustomSequenceClassification(PreTrainedModel):
-    def __init__(self, config, base_model, num_labels, use_mean_pooling=True):
-        super(CustomSequenceClassification, self).__init__(config)
-        self.base_model = base_model
+    def __init__(self, base_model, num_labels, use_mean_pooling=True):
+        super(CustomSequenceClassification, self).__init__()
+        self.base_model = AutoModel.from_pretrained(
+            base_model,
+            trust_remote_code=True,
+            use_memory_efficient_attention=False,
+            unpad_inputs=False,
+        )
+
         print(self.base_model)
-        exit()
+
         self.num_labels = num_labels
         self.use_mean_pooling = use_mean_pooling
-        self.classifier = nn.Linear(base_model.config.hidden_size, num_labels)
+        self.classifier = nn.Linear(self.base_model.config.hidden_size, num_labels)
 
     def forward(self, input_ids=None, attention_mask=None, labels=None, **kwargs):
         outputs = self.base_model(
@@ -166,19 +172,9 @@ def run(args):
     if args.embedding_model:
 
         if "stella" in args.base_model:
-            base_model = AutoModel.from_pretrained(
-                args.base_model if args.train else saved_model_name,
-                trust_remote_code=True,
-                use_memory_efficient_attention=False,
-                unpad_inputs=False,
-            )
-            config = AutoConfig.from_pretrained(
-                args.base_model,
-                trust_remote_code=True,
-            )
 
             model = CustomSequenceClassification(
-                config, base_model, num_labels, use_mean_pooling=False
+                args.base_model, num_labels, use_mean_pooling=False
             )
     else:
         model = AutoModelForSequenceClassification.from_pretrained(
@@ -206,9 +202,6 @@ def run(args):
         fp16=True,
     )
 
-    # Define early stopping callback
-    early_stopping = EarlyStoppingCallback(early_stopping_patience=args.patience)
-
     trainer = CustomTrainer(
         model=model,
         args=training_args,
@@ -216,7 +209,7 @@ def run(args):
         eval_dataset=dataset["dev"],
         tokenizer=tokenizer,
         compute_metrics=lambda pred: compute_metrics(pred, label_encoder),
-        callbacks=[early_stopping],
+        callbacks=[EarlyStoppingCallback(early_stopping_patience=args.patience)],
         label_smoothing=args.label_smoothing,
     )
 

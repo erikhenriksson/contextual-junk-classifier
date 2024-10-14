@@ -196,29 +196,17 @@ def run(args):
     if args.embedding_model:
 
         if "stella" in args.base_model:
-            base_model = AutoModel.from_pretrained(
+            model = AutoModelForSequenceClassification(
                 args.base_model if args.train else saved_model_name,
                 trust_remote_code=True,
                 use_memory_efficient_attention=False,
                 unpad_inputs=False,
+                num_labels=num_labels,
             )
-            model = AutoModelForSequenceClassification(
-                base_model, num_labels=num_labels
-            )
-        else:
-            base_model = AutoModel.from_pretrained(
-                "bert-base-uncased",
-                trust_remote_code=True,
-            )
-            model = CustomSequenceClassification(base_model, num_labels=num_labels)
     else:
         model = AutoModelForSequenceClassification.from_pretrained(
             args.base_model if args.train else saved_model_name, num_labels=num_labels
         )
-
-    # Calculate class weights based on the training labels
-    train_labels = np.array(dataset["train"]["label"])
-    class_weights = calculate_class_weights(train_labels, num_labels)
 
     # Define training arguments
     training_args = TrainingArguments(
@@ -244,28 +232,16 @@ def run(args):
     # Define early stopping callback
     early_stopping = EarlyStoppingCallback(early_stopping_patience=args.patience)
 
-    if args.use_class_weights:
-        trainer = WeightedTrainer(
-            model=model,
-            args=training_args,
-            train_dataset=dataset["train"],
-            eval_dataset=dataset["dev"],
-            tokenizer=tokenizer,
-            compute_metrics=lambda pred: compute_metrics(pred, label_encoder),
-            callbacks=[early_stopping],
-            class_weights=class_weights,
-        )
-    else:
-        trainer = CustomTrainer(
-            model=model,
-            args=training_args,
-            train_dataset=dataset["train"],
-            eval_dataset=dataset["dev"],
-            tokenizer=tokenizer,
-            compute_metrics=lambda pred: compute_metrics(pred, label_encoder),
-            callbacks=[early_stopping],
-            label_smoothing=args.label_smoothing,
-        )
+    trainer = CustomTrainer(
+        model=model,
+        args=training_args,
+        train_dataset=dataset["train"],
+        eval_dataset=dataset["dev"],
+        tokenizer=tokenizer,
+        compute_metrics=lambda pred: compute_metrics(pred, label_encoder),
+        callbacks=[early_stopping],
+        label_smoothing=args.label_smoothing,
+    )
 
     if args.train:
         trainer.train()

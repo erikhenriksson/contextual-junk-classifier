@@ -195,18 +195,21 @@ def run(args):
     if args.embedding_model:
 
         if "stella" in args.base_model:
-            base_model = AutoModelForSequenceClassification.from_pretrained(
+            base_model = AutoModel.from_pretrained(
                 args.base_model if args.train else saved_model_name,
                 trust_remote_code=True,
                 use_memory_efficient_attention=False,
                 unpad_inputs=False,
+            )
+            model = AutoModelForSequenceClassification(
+                base_model, num_labels=num_labels
             )
         else:
             base_model = AutoModel.from_pretrained(
                 "bert-base-uncased",
                 trust_remote_code=True,
             )
-        model = CustomSequenceClassification(base_model, num_labels=num_labels)
+            model = CustomSequenceClassification(base_model, num_labels=num_labels)
     else:
         model = AutoModelForSequenceClassification.from_pretrained(
             args.base_model if args.train else saved_model_name, num_labels=num_labels

@@ -40,5 +40,3 @@ elif args.model == "hierarchical":
     run_hierarchical(args)
 elif args.model == "platt":
     run_platt(args)
-# elif args.model == "embedding_classifier":
-#    run_embedding(args)

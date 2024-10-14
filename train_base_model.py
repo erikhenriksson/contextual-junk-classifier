@@ -192,9 +192,6 @@ def run(args):
                 args.base_model, trust_remote_code=True
             )
 
-            print(base_model)
-            exit()
-
             model = CustomSequenceClassification(
                 base_config.hidden_size, base_model, num_labels, use_mean_pooling=False
             )

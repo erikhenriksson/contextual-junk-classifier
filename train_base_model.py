@@ -31,9 +31,22 @@ from transformers import (
 from linear_dataset import get_data
 
 
+# Step 1: Create a custom configuration class if additional parameters are needed
+class CustomConfig(AutoConfig):
+    def __init__(self, num_labels=2, use_mean_pooling=True, **kwargs):
+        super().__init__(**kwargs)
+        self.num_labels = num_labels
+        self.use_mean_pooling = use_mean_pooling
+
+
 class CustomSequenceClassification(PreTrainedModel):
     def __init__(self, base_model, num_labels, use_mean_pooling=True):
-        config = AutoConfig.from_pretrained(base_model)
+        base_config = AutoConfig.from_pretrained(base_model)
+        config = CustomConfig(
+            num_labels=num_labels,
+            use_mean_pooling=use_mean_pooling,
+            **base_config.to_dict()  # Copies all attributes from the base config
+        )
         super(CustomSequenceClassification, self).__init__(config)
 
         self.base_model = AutoModel.from_pretrained(

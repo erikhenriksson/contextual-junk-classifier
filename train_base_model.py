@@ -32,15 +32,12 @@ from linear_dataset import get_data
 
 
 class CustomSequenceClassification(PreTrainedModel):
-    def __init__(self, base_model, num_labels, use_mean_pooling=True):
-        # Initialize the model configuration
-        config = base_model.config
+    def __init__(self, config, base_model, num_labels, use_mean_pooling=True):
         super(CustomSequenceClassification, self).__init__(config)
-
         self.base_model = base_model
         self.num_labels = num_labels
         self.use_mean_pooling = use_mean_pooling
-        self.classifier = nn.Linear(config.hidden_size, num_labels)
+        self.classifier = nn.Linear(base_model.config.hidden_size, num_labels)
 
     def forward(self, input_ids=None, attention_mask=None, labels=None, **kwargs):
         outputs = self.base_model(
@@ -183,8 +180,10 @@ def run(args):
                 use_memory_efficient_attention=False,
                 unpad_inputs=False,
             )
+            config = AutoConfig.from_pretrained(args.base_model)
+
             model = CustomSequenceClassification(
-                base_model, num_labels, use_mean_pooling=False
+                config, base_model, num_labels, use_mean_pooling=False
             )
     else:
         model = AutoModelForSequenceClassification.from_pretrained(

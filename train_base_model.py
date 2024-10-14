@@ -33,7 +33,9 @@ from linear_dataset import get_data
 
 class CustomSequenceClassification(PreTrainedModel):
     def __init__(self, base_model, num_labels, use_mean_pooling=True):
-        super(CustomSequenceClassification, self).__init__()
+        config = AutoConfig.from_pretrained(base_model)
+        super(CustomSequenceClassification, self).__init__(config)
+
         self.base_model = AutoModel.from_pretrained(
             base_model,
             trust_remote_code=True,

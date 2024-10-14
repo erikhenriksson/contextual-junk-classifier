@@ -192,12 +192,14 @@ def run(args):
     if args.embedding_model:
 
         if "stella" in args.base_model:
-            model = AutoModelForSequenceClassification.from_pretrained(
+            base_model = AutoModel.from_pretrained(
                 args.base_model if args.train else saved_model_name,
                 trust_remote_code=True,
                 use_memory_efficient_attention=False,
                 unpad_inputs=False,
-                num_labels=num_labels,
+            )
+            model = CustomSequenceClassification(
+                base_model, num_labels, use_mean_pooling=False
             )
     else:
         model = AutoModelForSequenceClassification.from_pretrained(

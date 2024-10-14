@@ -10,6 +10,7 @@ import numpy as np
 from torch.utils.data import DataLoader
 import json
 from tqdm import tqdm
+from scipy.special import softmax
 
 
 def run(args):
@@ -84,6 +85,9 @@ def run(args):
     # Convert lists to arrays
     logits = np.concatenate(logits_list, axis=0)  # Shape: [num_samples, 9]
 
+    # Calculate original probabilities using softmax
+    original_probs = softmax(logits, axis=1)  # Shape: [num_samples, 9]
+
     # For binary calculation: Use logits for the specific target class (e.g., "clean")
     clean_label_index = label_encoder.transform(["clean"])[0]
     target_class_index = clean_label_index  # Index of the class for binary separation
@@ -91,7 +95,7 @@ def run(args):
 
     # Transform labels to binary based on the target class
     test_labels = np.array(
-        [0 if label == target_class_index else 1 for label in test_dataset["label"]]
+        [1 if label == target_class_index else 0 for label in test_dataset["label"]]
     )
 
     # Apply Platt scaling logistic regression on the binary logits
@@ -101,12 +105,20 @@ def run(args):
     # Apply the Platt scaler to get calibrated probabilities
     calibrated_probs = platt_scaler.predict_proba(positive_logits.reshape(-1, 1))[:, 1]
 
-    # Save texts and calibrated probabilities to a JSON Lines file
+    # Save texts, original probabilities, and calibrated probabilities to a JSON Lines file
     output_file = f"calibrated_results_{args.local_model}.jsonl"
     with open(output_file, "w") as f:
-        for text, prob in zip(texts, calibrated_probs):
-            json_line = json.dumps({"text": text, "calibrated_probability": prob})
+        for text, orig_prob, cal_prob in zip(texts, original_probs, calibrated_probs):
+            json_line = json.dumps(
+                {
+                    "text": text,
+                    "original_probability": orig_prob[
+                        target_class_index
+                    ],  # Save only the target class prob
+                    "calibrated_probability": cal_prob,
+                }
+            )
             f.write(json_line + "\n")
 
-    print(f"Calibrated probabilities and texts saved to {output_file}")
+    print(f"Original and calibrated probabilities saved to {output_file}")
     return calibrated_probs

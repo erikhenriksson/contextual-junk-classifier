@@ -47,7 +47,7 @@ class CustomSequenceClassification(PreTrainedModel):
             use_mean_pooling=use_mean_pooling,
             # **base_config.to_dict(),  # Copies all attributes from the base config
         )
-        super(CustomSequenceClassification, self).__init__(config)
+        super(CustomSequenceClassification, self).__init__(base_config)
 
         self.base_model = AutoModel.from_pretrained(
             base_model,

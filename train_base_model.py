@@ -51,6 +51,8 @@ class CustomSequenceClassification(PreTrainedModel):
         super(CustomSequenceClassification, self).__init__(config)
 
         self.base_model = base_model
+        print(base_model)
+        exit()
         self.num_labels = num_labels
         self.use_mean_pooling = use_mean_pooling
         self.classifier = nn.Linear(hidden_size, num_labels)

@@ -109,7 +109,6 @@ class DocumentClassifier(nn.Module):
         base_model,
         freeze_base_model=True,
         d_model=1024,
-        max_position_embeddings=32,
     ):
         super(DocumentClassifier, self).__init__()
         self.num_labels = len(class_names)
@@ -121,7 +120,7 @@ class DocumentClassifier(nn.Module):
                 param.requires_grad = False
 
         # Positional embeddings
-        self.positional_embeddings = nn.Embedding(max_position_embeddings, d_model)
+        self.positional_embeddings = nn.Embedding(64, d_model)
 
         encoder_layer = nn.TransformerEncoderLayer(d_model=d_model, nhead=8)
         self.transformer_encoder = nn.TransformerEncoder(encoder_layer, num_layers=12)
@@ -131,7 +130,7 @@ class DocumentClassifier(nn.Module):
 
         self.linear = nn.Linear(d_model, self.num_labels)
 
-        self.batch_size = 32
+        self.batch_size = 64
         self.max_length = 512
         self.tokenizer = AutoTokenizer.from_pretrained(self.base_model_name)
 
@@ -321,7 +320,7 @@ def train_model(
     model_save_path,
     optimizer,
     loss_fn,
-    epochs=15,
+    epochs=5,
     patience=5,
     lr_scheduler_ratio=0.95,
     evaluation_steps=500,
@@ -456,7 +455,7 @@ def run(args):
             data["dev"],
             model,
             model_save_path,
-            AdamW(model.parameters(), lr=1e-5, weight_decay=0.01),
+            AdamW(model.parameters(), lr=6e-5, weight_decay=0.01),
             loss_fn,
         )
 

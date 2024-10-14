@@ -49,7 +49,7 @@ class CustomSequenceClassification(PreTrainedModel):
         config = CustomConfig(
             num_labels=num_labels,
             use_mean_pooling=use_mean_pooling,
-            #**base_config.to_dict(),  # Copies all attributes from the base config
+            # **base_config.to_dict(),  # Copies all attributes from the base config
         )
 
         # Initialize the superclass with the custom config
@@ -57,9 +57,11 @@ class CustomSequenceClassification(PreTrainedModel):
 
         print(self.base_model)
 
+        hidden_size = base_config.hidden_size
+
         self.num_labels = num_labels
         self.use_mean_pooling = use_mean_pooling
-        self.classifier = nn.Linear(self.base_model.config.hidden_size, num_labels)
+        self.classifier = nn.Linear(hidden_size, num_labels)
 
     def forward(self, input_ids=None, attention_mask=None, labels=None, **kwargs):
         outputs = self.base_model(

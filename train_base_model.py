@@ -196,7 +196,7 @@ def run(args):
 
         if "stella" in args.base_model:
             base_model = AutoModel.from_pretrained(
-                args.base_model,
+                args.base_model if args.train else saved_model_name,
                 trust_remote_code=True,
                 use_memory_efficient_attention=False,
                 unpad_inputs=False,

@@ -42,11 +42,11 @@ class CustomConfig(AutoConfig):
 class CustomSequenceClassification(PreTrainedModel):
     def __init__(self, base_model, num_labels, use_mean_pooling=True):
         base_config = AutoConfig.from_pretrained(base_model, trust_remote_code=True)
-        config = CustomConfig(
-            num_labels=num_labels,
-            use_mean_pooling=use_mean_pooling,
-            # **base_config.to_dict(),  # Copies all attributes from the base config
-        )
+        # config = CustomConfig(
+        #    num_labels=num_labels,
+        #    use_mean_pooling=use_mean_pooling,
+        #    # **base_config.to_dict(),  # Copies all attributes from the base config
+        # )
         super(CustomSequenceClassification, self).__init__(base_config)
 
         self.base_model = AutoModel.from_pretrained(

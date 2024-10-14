@@ -66,16 +66,6 @@ class CustomSequenceClassification(PreTrainedModel):
 
         return {"loss": loss, "logits": logits}
 
-    @classmethod
-    def from_pretrained(cls, model_name_or_path, *model_args, **kwargs):
-        # Load the base model and wrap it in CustomSequenceClassification
-        base_model = AutoModel.from_pretrained(model_name_or_path, **kwargs)
-        num_labels = kwargs.pop(
-            "num_labels", 2
-        )  # or any default label number you expect
-        use_mean_pooling = kwargs.pop("use_mean_pooling", True)
-        return cls(base_model, num_labels, use_mean_pooling)
-
 
 class CustomTrainer(Trainer):
     def __init__(self, *args, label_smoothing, **kwargs):
@@ -180,7 +170,10 @@ def run(args):
                 use_memory_efficient_attention=False,
                 unpad_inputs=False,
             )
-            config = AutoConfig.from_pretrained(args.base_model)
+            config = AutoConfig.from_pretrained(
+                args.base_model,
+                trust_remote_code=True,
+            )
 
             model = CustomSequenceClassification(
                 config, base_model, num_labels, use_mean_pooling=False

@@ -108,7 +108,7 @@ class DocumentClassifier(nn.Module):
         class_names,
         base_model,
         freeze_base_model=True,
-        d_model=768,
+        d_model=1024,
         max_position_embeddings=32,
     ):
         super(DocumentClassifier, self).__init__()
@@ -441,7 +441,7 @@ def run(args):
         alpha = calculate_inverse_frequency_alpha(data, label_encoder)
         loss_fn = FocalLoss(alpha=alpha, gamma=1, reduction="mean")
     else:
-        loss_fn = nn.CrossEntropyLoss()
+        loss_fn = nn.CrossEntropyLoss(label_smoothing=args.label_smoothing)
 
     if args.train:
         model = DocumentClassifier(

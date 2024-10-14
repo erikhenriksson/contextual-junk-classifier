@@ -31,22 +31,16 @@ from transformers import (
 from linear_dataset import get_data
 
 
-# Calculate class weights based on the training dataset
-def calculate_class_weights(labels, num_labels):
-    class_weights = compute_class_weight(
-        class_weight="balanced", classes=np.arange(num_labels), y=labels
-    )
-    return torch.tensor(class_weights, dtype=torch.float)
-
-
-# Custom model with a classification head
 class CustomSequenceClassification(PreTrainedModel):
     def __init__(self, base_model, num_labels, use_mean_pooling=True):
-        super(CustomSequenceClassification, self).__init__(base_model.config)
+        # Initialize the model configuration
+        config = base_model.config
+        super(CustomSequenceClassification, self).__init__(config)
+
         self.base_model = base_model
         self.num_labels = num_labels
         self.use_mean_pooling = use_mean_pooling
-        self.classifier = nn.Linear(base_model.config.hidden_size, num_labels)
+        self.classifier = nn.Linear(config.hidden_size, num_labels)
 
     def forward(self, input_ids=None, attention_mask=None, labels=None, **kwargs):
         outputs = self.base_model(
@@ -75,25 +69,15 @@ class CustomSequenceClassification(PreTrainedModel):
 
         return {"loss": loss, "logits": logits}
 
-
-class WeightedTrainer(Trainer):
-    def __init__(self, class_weights, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.class_weights = class_weights
-
-    def compute_loss(self, model, inputs, return_outputs=False):
-        labels = inputs.get("labels")
-        # Forward pass
-        outputs = model(**inputs)
-        logits = outputs.get("logits")
-
-        # Compute the weighted loss
-        loss_fct = torch.nn.CrossEntropyLoss(
-            weight=self.class_weights.to(logits.device)
-        )
-        loss = loss_fct(logits, labels)
-
-        return (loss, outputs) if return_outputs else loss
+    @classmethod
+    def from_pretrained(cls, model_name_or_path, *model_args, **kwargs):
+        # Load the base model and wrap it in CustomSequenceClassification
+        base_model = AutoModel.from_pretrained(model_name_or_path, **kwargs)
+        num_labels = kwargs.pop(
+            "num_labels", 2
+        )  # or any default label number you expect
+        use_mean_pooling = kwargs.pop("use_mean_pooling", True)
+        return cls(base_model, num_labels, use_mean_pooling)
 
 
 class CustomTrainer(Trainer):

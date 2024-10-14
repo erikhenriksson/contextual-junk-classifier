@@ -26,13 +26,15 @@ from transformers import (
     AutoTokenizer,
     AutoModel,
     AutoModelForSequenceClassification,
+    PretrainedConfig,
 )
 
 from linear_dataset import get_data
 
 
 # Step 1: Create a custom configuration class if additional parameters are needed
-class CustomConfig(AutoConfig):
+# Step 1: Create a custom configuration class extending PretrainedConfig directly
+class CustomConfig(PretrainedConfig):
     def __init__(self, num_labels=2, use_mean_pooling=True, **kwargs):
         super().__init__(**kwargs)
         self.num_labels = num_labels
@@ -42,19 +44,16 @@ class CustomConfig(AutoConfig):
 class CustomSequenceClassification(PreTrainedModel):
     def __init__(self, base_model, num_labels, use_mean_pooling=True):
         base_config = AutoConfig.from_pretrained(base_model, trust_remote_code=True)
-        # config = CustomConfig(
-        #    num_labels=num_labels,
-        #    use_mean_pooling=use_mean_pooling,
-        #    # **base_config.to_dict(),  # Copies all attributes from the base config
-        # )
-        super(CustomSequenceClassification, self).__init__(base_config)
 
-        self.base_model = AutoModel.from_pretrained(
-            base_model,
-            trust_remote_code=True,
-            use_memory_efficient_attention=False,
-            unpad_inputs=False,
+        # Create a CustomConfig instance, inheriting attributes from base_config
+        config = CustomConfig(
+            num_labels=num_labels,
+            use_mean_pooling=use_mean_pooling,
+            **base_config.to_dict(),  # Copies all attributes from the base config
         )
+
+        # Initialize the superclass with the custom config
+        super(CustomSequenceClassification, self).__init__(config)
 
         print(self.base_model)
 

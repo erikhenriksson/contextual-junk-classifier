@@ -56,7 +56,6 @@ def run(args):
 
     model.half()
     model.eval()
-    print(model)
 
     # Create a DataLoader for the test dataset
     test_loader = DataLoader(
@@ -97,6 +96,24 @@ def run(args):
     test_labels = np.array(
         [1 if label == target_class_index else 0 for label in test_dataset["label"]]
     )
+
+    if args.platt_tune:
+        from sklearn.model_selection import GridSearchCV
+
+        param_grid = {
+            "C": [1e-5, 1e-3, 0.1, 1, 10, 1e3, 1e5],
+            "solver": ["lbfgs", "newton-cg", "sag", "saga"],
+        }
+
+        grid_search = GridSearchCV(
+            LogisticRegression(), param_grid, cv=5, scoring="neg_log_loss"
+        )
+        grid_search.fit(positive_logits.reshape(-1, 1), test_labels)
+
+        best_platt_scaler = grid_search.best_estimator_
+
+        print(best_platt_scaler)
+        exit()
 
     # Apply Platt scaling logistic regression on the binary logits
     platt_scaler = LogisticRegression(C=1e10, solver="lbfgs")

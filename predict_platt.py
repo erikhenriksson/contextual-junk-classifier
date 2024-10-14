@@ -116,7 +116,7 @@ def run(args):
         exit()
 
     # Apply Platt scaling logistic regression on the binary logits
-    platt_scaler = LogisticRegression(C=1e10, solver="lbfgs")
+    platt_scaler = LogisticRegression(C=10, solver="sag")
     platt_scaler.fit(positive_logits.reshape(-1, 1), test_labels)
 
     # Apply the Platt scaler to get calibrated probabilities

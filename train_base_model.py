@@ -33,7 +33,6 @@ from linear_dataset import get_data
 
 
 # Step 1: Create a custom configuration class if additional parameters are needed
-# Step 1: Create a custom configuration class extending PretrainedConfig directly
 class CustomConfig(PretrainedConfig):
     def __init__(self, num_labels=2, use_mean_pooling=True, **kwargs):
         super().__init__(**kwargs)
@@ -42,8 +41,7 @@ class CustomConfig(PretrainedConfig):
 
 
 class CustomSequenceClassification(PreTrainedModel):
-    def __init__(self, base_model, num_labels, use_mean_pooling=True):
-        base_config = AutoConfig.from_pretrained(base_model, trust_remote_code=True)
+    def __init__(self, hidden_size, base_model, num_labels, use_mean_pooling=True):
 
         config = CustomConfig(
             num_labels=num_labels,
@@ -52,14 +50,7 @@ class CustomSequenceClassification(PreTrainedModel):
 
         super(CustomSequenceClassification, self).__init__(config)
 
-        self.base_model = AutoModel.from_pretrained(
-            base_model,
-            trust_remote_code=True,
-            use_memory_efficient_attention=False,
-            unpad_inputs=False,
-        )
-        hidden_size = base_config.hidden_size
-
+        self.base_model = base_model
         self.num_labels = num_labels
         self.use_mean_pooling = use_mean_pooling
         self.classifier = nn.Linear(hidden_size, num_labels)
@@ -190,8 +181,22 @@ def run(args):
 
         if "stella" in args.base_model:
 
+            base_model = AutoModel.from_pretrained(
+                args.base_model,
+                trust_remote_code=True,
+                use_memory_efficient_attention=False,
+                unpad_inputs=False,
+            )
+
+            base_config = AutoConfig.from_pretrained(
+                args.base_model, trust_remote_code=True
+            )
+
+            print(base_model)
+            exit()
+
             model = CustomSequenceClassification(
-                args.base_model, num_labels, use_mean_pooling=False
+                base_config.hidden_size, base_model, num_labels, use_mean_pooling=False
             )
     else:
         model = AutoModelForSequenceClassification.from_pretrained(

@@ -158,7 +158,7 @@ def compute_metrics(pred, label_encoder):
 
 # Main function to run the training process
 def run(args):
-    # Load and preprocess data
+
     data, label_encoder = get_data(
         args.multiclass,
         downsample_ratio=args.downsample_clean_ratio,
@@ -166,18 +166,14 @@ def run(args):
     )
 
     suffix = "_multiclass" if args.multiclass else "_binary"
-    class_weights = "_class_weights" if args.use_class_weights else ""
     use_synth = "_synth" if args.add_synthetic_data else ""
     smooth = f"_smoothing-{args.label_smoothing}" if args.label_smoothing > 0.0 else ""
-    saved_model_name = f"newdata_{args.base_model.replace('/', '_')}_base_model{suffix}_clean_ratio_{args.downsample_clean_ratio}{class_weights}{smooth}{use_synth}_p{args.patience}"
+    saved_model_name = f"newdata_{args.base_model.replace('/', '_')}_base_model{suffix}_clean_ratio_{args.downsample_clean_ratio}{smooth}{use_synth}_p{args.patience}"
 
     num_labels = len(label_encoder.classes_)
 
     # Tokenize dataset
-    if args.base_model == "jxm/cde-small-v1":
-        tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
-    else:
-        tokenizer = AutoTokenizer.from_pretrained(args.base_model)
+    tokenizer = AutoTokenizer.from_pretrained(args.base_model)
 
     def tokenize(batch):
         return tokenizer(
@@ -196,7 +192,7 @@ def run(args):
     if args.embedding_model:
 
         if "stella" in args.base_model:
-            model = AutoModelForSequenceClassification(
+            model = AutoModelForSequenceClassification.from_pretrained(
                 args.base_model if args.train else saved_model_name,
                 trust_remote_code=True,
                 use_memory_efficient_attention=False,

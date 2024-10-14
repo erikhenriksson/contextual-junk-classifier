@@ -60,7 +60,7 @@ def run(args):
 
     # Create a DataLoader for the test dataset
     test_loader = DataLoader(
-        test_dataset, batch_size=64, shuffle=False, collate_fn=data_collator
+        test_dataset, batch_size=128, shuffle=False, collate_fn=data_collator
     )
 
     # Store logits and texts
@@ -112,10 +112,10 @@ def run(args):
             json_line = json.dumps(
                 {
                     "text": text,
-                    "original_probability": orig_prob[
-                        target_class_index
-                    ],  # Save only the target class prob
-                    "calibrated_probability": cal_prob,
+                    "original_probability": float(
+                        orig_prob[target_class_index]
+                    ),  # Save only the target class prob
+                    "calibrated_probability": float(cal_prob),
                 }
             )
             f.write(json_line + "\n")

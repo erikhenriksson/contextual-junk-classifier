@@ -45,18 +45,19 @@ class CustomSequenceClassification(PreTrainedModel):
     def __init__(self, base_model, num_labels, use_mean_pooling=True):
         base_config = AutoConfig.from_pretrained(base_model, trust_remote_code=True)
 
-        # Create a CustomConfig instance, inheriting attributes from base_config
         config = CustomConfig(
             num_labels=num_labels,
             use_mean_pooling=use_mean_pooling,
-            # **base_config.to_dict(),  # Copies all attributes from the base config
         )
 
-        # Initialize the superclass with the custom config
         super(CustomSequenceClassification, self).__init__(config)
 
-        print(self.base_model)
-
+        self.base_model = AutoModel.from_pretrained(
+            base_model,
+            trust_remote_code=True,
+            use_memory_efficient_attention=False,
+            unpad_inputs=False,
+        )
         hidden_size = base_config.hidden_size
 
         self.num_labels = num_labels

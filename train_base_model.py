@@ -45,7 +45,7 @@ class CustomSequenceClassification(PreTrainedModel):
         config = CustomConfig(
             num_labels=num_labels,
             use_mean_pooling=use_mean_pooling,
-            **base_config.to_dict(),  # Copies all attributes from the base config
+            # **base_config.to_dict(),  # Copies all attributes from the base config
         )
         super(CustomSequenceClassification, self).__init__(config)
 

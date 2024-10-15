@@ -270,15 +270,24 @@ def main(args):
         label_smoothing=0.1,
     )
 
+    if args.predict_line:
+        # predict just one line with the loaded model
+        line = args.predict_line
+        inputs = tokenizer(line, return_tensors="pt")
+        outputs = model(**inputs)
+        logits = outputs.get("logits")
+        predicted_class_idx = logits.argmax().item()
+        predicted_class = label_encoder.inverse_transform([predicted_class_idx])[0]
+        print(f"Predicted class for line '{line}': {predicted_class}")
+        exit()
+
     if args.train:
         trainer.train()
+        trainer.save_model(saved_model_name)
 
     # Evaluate the model on the test set
     eval_result = trainer.evaluate(eval_dataset=dataset["test"])
     print(f"Test set evaluation results: {eval_result}")
-
-    # Save the best model
-    trainer.save_model(saved_model_name)
 
 
 if __name__ == "__main__":
@@ -287,6 +296,7 @@ if __name__ == "__main__":
     parser.add_argument("--add_synthetic_data", action="store_true")
     parser.add_argument("--train", action="store_true")
     parser.add_argument("--embedding_model", action="store_true")
+    parser.add_argument("--predict_line")
     args = parser.parse_args()
 
     main(args)

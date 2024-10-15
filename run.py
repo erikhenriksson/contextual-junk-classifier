@@ -283,11 +283,11 @@ class CustomClassificationModel(PreTrainedModel):
 
         # Instantiate the model
         model = cls(config)
+        if kwargs.get("use_finetuned_weights", False):
+            # Load weights from the .safetensors file
+            model_weights = load_file(f"{model_name_or_path}/model.safetensors")
+            model.load_state_dict(model_weights)
 
-        # Load weights from the .safetensors file
-        # model_weights = load_file(f"{model_name_or_path}/model.safetensors")
-        # model.load_state_dict(model_weights)
-        model = super().from_pretrained(model_name_or_path)
         return model
 
 
@@ -416,6 +416,7 @@ def main(args):
             args.base_model if args.train else saved_model_name,
             num_labels=num_labels,
             pooling_type="mean",
+            use_finetuned_weights=not args.train,
         )
 
     else:

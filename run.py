@@ -198,15 +198,48 @@ class CustomSequenceClassification(PreTrainedModel):
 """
 
 
-class CustomClassificationModel(PreTrainedModel):
-    def __init__(self, config, num_labels):
-        super().__init__(config)
-        self.num_labels = num_labels
-        self.transformer = AutoModel.from_pretrained(
-            config.model_name_or_path, trust_remote_code=True
+class ImprovedClassificationHead(nn.Module):
+    def __init__(self, config, pooling_type="cls"):
+        super().__init__()
+        self.pooling_type = pooling_type
+        self.dense = nn.Linear(config.hidden_size, config.hidden_size)
+        classifier_dropout = (
+            config.classifier_dropout
+            if hasattr(config, "classifier_dropout")
+            and config.classifier_dropout is not None
+            else config.hidden_dropout_prob
         )
-        self.dropout = nn.Dropout(config.hidden_dropout_prob)
-        self.classifier = nn.Linear(config.hidden_size, num_labels)
+        self.dropout = nn.Dropout(classifier_dropout)
+        self.out_proj = nn.Linear(config.hidden_size, config.num_labels)
+
+    def forward(self, features, attention_mask=None):
+        if self.pooling_type == "cls":
+            x = features[:, 0, :]  # take <s> token (equiv. to [CLS])
+        elif self.pooling_type == "mean":
+            input_mask_expanded = (
+                attention_mask.unsqueeze(-1).expand(features.size()).float()
+            )
+            sum_embeddings = torch.sum(features * input_mask_expanded, 1)
+            sum_mask = input_mask_expanded.sum(1)
+            sum_mask = torch.clamp(sum_mask, min=1e-9)
+            x = sum_embeddings / sum_mask
+        else:
+            raise ValueError("Unsupported pooling type. Use 'cls' or 'mean'.")
+
+        x = self.dropout(x)
+        x = self.dense(x)
+        x = torch.tanh(x)
+        x = self.dropout(x)
+        x = self.out_proj(x)
+        return x
+
+
+class CustomClassificationModel(PreTrainedModel):
+    def __init__(self, config, pooling_type="cls"):
+        super().__init__(config)
+        self.num_labels = config.num_labels
+        self.base_model = AutoModel.from_pretrained(config.model_name_or_path)
+        self.classifier = ImprovedClassificationHead(config, pooling_type)
 
     def forward(
         self,
@@ -216,7 +249,7 @@ class CustomClassificationModel(PreTrainedModel):
         labels=None,
         **kwargs,
     ):
-        outputs = self.transformer(
+        outputs = self.base_model(
             input_ids=input_ids,
             attention_mask=attention_mask,
             token_type_ids=token_type_ids,
@@ -224,8 +257,7 @@ class CustomClassificationModel(PreTrainedModel):
         )
 
         sequence_output = outputs.last_hidden_state
-        pooled_output = self.dropout(sequence_output)
-        logits = self.classifier(pooled_output)
+        logits = self.classifier(sequence_output, attention_mask)
 
         loss = None
         if labels is not None:

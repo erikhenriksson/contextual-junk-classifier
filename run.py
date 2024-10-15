@@ -202,7 +202,7 @@ class CustomClassificationModel(PreTrainedModel):
     def __init__(self, config, num_labels):
         super().__init__(config)
         self.num_labels = num_labels
-        self.base_model = AutoModel.from_pretrained(config.model_name_or_path)
+        self.transformer = AutoModel.from_pretrained(config.model_name_or_path)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
         self.classifier = nn.Linear(config.hidden_size, num_labels)
 
@@ -214,7 +214,7 @@ class CustomClassificationModel(PreTrainedModel):
         labels=None,
         **kwargs,
     ):
-        outputs = self.base_model(
+        outputs = self.transformer(
             input_ids=input_ids,
             attention_mask=attention_mask,
             token_type_ids=token_type_ids,

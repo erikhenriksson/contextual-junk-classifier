@@ -419,7 +419,9 @@ def main(args):
         config.num_labels = num_labels
         config.model_name_or_path = args.base_model if args.train else saved_model_name
         config.pooling_type = "mean"
-        model = CustomClassificationModel.from_pretrained(config)
+        model = CustomClassificationModel.from_pretrained(
+            args.base_model if args.train else saved_model_name
+        )
 
     else:
         model = AutoModelForSequenceClassification.from_pretrained(

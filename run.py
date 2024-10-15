@@ -256,7 +256,8 @@ def main(args):
         per_device_eval_batch_size=16,
         num_train_epochs=5,
         seed=42,
-        fp16=True,
+        bf16=True,
+        tf32=True,
     )
 
     trainer = CustomTrainer(

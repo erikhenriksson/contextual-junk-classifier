@@ -199,9 +199,9 @@ class CustomSequenceClassification(PreTrainedModel):
 
 
 class ImprovedClassificationHead(nn.Module):
-    def __init__(self, config, pooling_type="cls"):
+    def __init__(self, config):
         super().__init__()
-        self.pooling_type = pooling_type
+        self.pooling_type = config.pooling_type
         self.dense = nn.Linear(config.hidden_size, config.hidden_size)
         classifier_dropout = (
             config.classifier_dropout
@@ -238,8 +238,10 @@ class CustomClassificationModel(PreTrainedModel):
     def __init__(self, config, pooling_type="cls"):
         super().__init__(config)
         self.num_labels = config.num_labels
-        self.base_model = AutoModel.from_pretrained(config.model_name_or_path)
-        self.classifier = ImprovedClassificationHead(config, pooling_type)
+        self.transformer = AutoModel.from_pretrained(
+            config.model_name_or_path, trust_remote_code=True
+        )
+        self.classifier = ImprovedClassificationHead(config)
 
     def forward(
         self,
@@ -249,7 +251,7 @@ class CustomClassificationModel(PreTrainedModel):
         labels=None,
         **kwargs,
     ):
-        outputs = self.base_model(
+        outputs = self.transformer(
             input_ids=input_ids,
             attention_mask=attention_mask,
             token_type_ids=token_type_ids,
@@ -399,7 +401,8 @@ def main(args):
         )
         config.num_labels = 2  # Adjust based on your classification task
         config.model_name_or_path = args.base_model
-        model = CustomClassificationModel(config, pooling_type="mean")
+        config.pooling_type = "mean"
+        model = CustomClassificationModel(config)
 
     else:
         model = AutoModelForSequenceClassification.from_pretrained(

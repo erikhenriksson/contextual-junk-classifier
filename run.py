@@ -82,6 +82,38 @@ class CustomSequenceClassification(PreTrainedModel):
 
         return {"loss": loss, "logits": logits}
 
+    def save_pretrained(self, save_directory):
+        # Save the configuration file
+        self.config.save_pretrained(save_directory)
+
+        # Save the model weights
+        torch.save(self.state_dict(), os.path.join(save_directory, "pytorch_model.bin"))
+
+    @classmethod
+    def from_pretrained(cls, pretrained_model_name_or_path, *model_args, **kwargs):
+        # Load configuration
+        config = CustomConfig.from_pretrained(pretrained_model_name_or_path)
+
+        # Initialize the base model
+        base_model = AutoModel.from_pretrained(
+            pretrained_model_name_or_path, *model_args, **kwargs
+        )
+
+        # Initialize the custom model with base model and other parameters
+        model = cls(
+            hidden_size=config.hidden_size,
+            base_model=base_model,
+            num_labels=config.num_labels,
+            use_mean_pooling=config.use_mean_pooling,
+        )
+
+        # Load weights
+        model.load_state_dict(
+            torch.load(os.path.join(pretrained_model_name_or_path, "pytorch_model.bin"))
+        )
+
+        return model
+
 
 class CustomTrainer(Trainer):
     def __init__(self, *args, label_smoothing, **kwargs):

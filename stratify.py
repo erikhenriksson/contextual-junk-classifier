@@ -31,13 +31,13 @@ data = clean_data + junk_data
 # Stratify and split data
 train_data, temp_data = train_test_split(
     data,
-    test_size=0.2,
+    test_size=0.3,
     stratify=[item["label"] for item in data],
     random_state=random_state,
 )
 test_data, dev_data = train_test_split(
     temp_data,
-    test_size=0.5,
+    test_size=1 / 3,
     stratify=[item["label"] for item in temp_data],
     random_state=random_state,
 )

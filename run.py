@@ -24,6 +24,8 @@ from sklearn.metrics import (
     classification_report,
 )
 
+from transformers.modeling_outputs import SequenceClassifierOutput
+
 from transformers import (
     EarlyStoppingCallback,
     Trainer,
@@ -34,7 +36,7 @@ from transformers import (
     PretrainedConfig,
 )
 
-
+"""
 class CustomConfig(PretrainedConfig):
     def __init__(self, num_labels=2, use_mean_pooling=True, **kwargs):
         super().__init__(**kwargs)
@@ -43,7 +45,17 @@ class CustomConfig(PretrainedConfig):
 
 
 class CustomSequenceClassification(PreTrainedModel):
-    def __init__(self, hidden_size, base_model, num_labels, use_mean_pooling=True):
+    def __init__(self, base_model_name, num_labels, use_mean_pooling=True):
+        base_model = AutoModel.from_pretrained(
+            base_model_name,
+            trust_remote_code=True,
+            use_memory_efficient_attention=False,
+            unpad_inputs=False,
+        )
+
+        base_config = AutoConfig.from_pretrained(
+            base_model_name, trust_remote_code=True
+        )
         config = CustomConfig(
             num_labels=num_labels,
             use_mean_pooling=use_mean_pooling,
@@ -54,7 +66,7 @@ class CustomSequenceClassification(PreTrainedModel):
         self.transformer = base_model
         self.num_labels = num_labels
         self.use_mean_pooling = use_mean_pooling
-        self.classifier = nn.Linear(hidden_size, num_labels)
+        self.classifier = nn.Linear(base_config.hidden_size, num_labels)
 
     def forward(self, input_ids=None, attention_mask=None, labels=None, **kwargs):
         outputs = self.transformer(
@@ -81,6 +93,185 @@ class CustomSequenceClassification(PreTrainedModel):
             loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
 
         return {"loss": loss, "logits": logits}
+
+
+
+class CustomClassificationHead(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        self.dense = nn.Linear(config.hidden_size, config.hidden_size)
+        classifier_dropout = 0.1
+        self.dropout = nn.Dropout(classifier_dropout)
+        self.out_proj = nn.Linear(config.hidden_size, config.num_labels)
+
+def forward(self, features, attention_mask=None, **kwargs):
+        # Compute mean pooling: sum up the token embeddings and divide by the actual length
+        if attention_mask is not None:
+            # Apply attention mask to the features (optional but recommended)
+            mask_expanded = attention_mask.unsqueeze(-1).expand(features.size()).float()
+            # Sum the features and divide by the sum of the attention mask
+            x = torch.sum(features * mask_expanded, dim=1) / torch.clamp(mask_expanded.sum(dim=1), min=1e-9)
+        else:
+            # If no attention mask is provided, just average over the sequence length
+            x = torch.mean(features, dim=1)
+
+        # Pass through the dense layer with dropout and activation
+        x = self.dropout(x)
+        x = self.dense(x)
+        x = torch.tanh(x)
+        x = self.dropout(x)
+        x = self.out_proj(x)
+        
+        return x
+
+    def forward(self, features, **kwargs):
+        x = features[:, 0, :]  # take <s> token (equiv. to [CLS])
+        x = self.dropout(x)
+        x = self.dense(x)
+        x = torch.tanh(x)
+        x = self.dropout(x)
+        x = self.out_proj(x)
+        return x
+
+
+class CustomSequenceClassification(PreTrainedModel):
+    def __init__(self, config):
+        super().__init__(config)
+        self.num_labels = config.num_labels
+        self.config = config
+
+        self.transformer = AutoModel.from_config(config)
+        self.classifier = CustomClassificationHead(config)
+
+        # Initialize weights and apply final processing
+        self.post_init()
+
+    def forward(
+        self,
+        input_ids=None,
+        attention_mask=None,
+        token_type_ids=None,
+        position_ids=None,
+        head_mask=None,
+        inputs_embeds=None,
+        labels=None,
+        output_attentions=None,
+        output_hidden_states=None,
+        return_dict=None,
+    ):
+        return_dict = (
+            return_dict if return_dict is not None else self.config.use_return_dict
+        )
+
+        outputs = self.roberta(
+            input_ids,
+            attention_mask=attention_mask,
+            token_type_ids=token_type_ids,
+            position_ids=position_ids,
+            head_mask=head_mask,
+            inputs_embeds=inputs_embeds,
+            output_attentions=output_attentions,
+            output_hidden_states=output_hidden_states,
+            return_dict=return_dict,
+        )
+        sequence_output = outputs[0]
+        logits = self.classifier(
+            sequence_output, mean_pooling=self.config.use_mean_pooling
+        )
+
+        loss = None
+        if labels is not None:
+            labels = labels.to(logits.device)
+            loss_fct = CrossEntropyLoss()
+            loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
+
+        if not return_dict:
+            output = (logits,) + outputs[2:]
+            return ((loss,) + output) if loss is not None else output
+
+        return SequenceClassifierOutput(
+            loss=loss,
+            logits=logits,
+            hidden_states=outputs.hidden_states,
+            attentions=outputs.attentions,
+        )
+"""
+
+
+class ImprovedClassificationHead(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        self.pooling_type = config.pooling_type
+        self.dense = nn.Linear(config.hidden_size, config.hidden_size)
+        classifier_dropout = (
+            config.classifier_dropout
+            if hasattr(config, "classifier_dropout")
+            and config.classifier_dropout is not None
+            else config.hidden_dropout_prob
+        )
+        self.dropout = nn.Dropout(classifier_dropout)
+        self.out_proj = nn.Linear(config.hidden_size, config.num_labels)
+
+    def forward(self, features, attention_mask=None):
+        if self.pooling_type == "cls":
+            x = features[:, 0, :]  # take <s> token (equiv. to [CLS])
+        elif self.pooling_type == "mean":
+            input_mask_expanded = (
+                attention_mask.unsqueeze(-1).expand(features.size()).float()
+            )
+            sum_embeddings = torch.sum(features * input_mask_expanded, 1)
+            sum_mask = input_mask_expanded.sum(1)
+            sum_mask = torch.clamp(sum_mask, min=1e-9)
+            x = sum_embeddings / sum_mask
+        else:
+            raise ValueError("Unsupported pooling type. Use 'cls' or 'mean'.")
+
+        x = self.dropout(x)
+        x = self.dense(x)
+        x = torch.tanh(x)
+        x = self.dropout(x)
+        x = self.out_proj(x)
+        return x
+
+
+class CustomClassificationModel(PreTrainedModel):
+    def __init__(self, config):
+        super().__init__(config)
+        self.num_labels = config.num_labels
+        self.transformer = AutoModel.from_pretrained(
+            config.model_name_or_path, trust_remote_code=True
+        )
+        self.classifier = ImprovedClassificationHead(config)
+
+    def forward(
+        self,
+        input_ids=None,
+        attention_mask=None,
+        token_type_ids=None,
+        labels=None,
+        **kwargs,
+    ):
+        outputs = self.transformer(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+            token_type_ids=token_type_ids,
+            **kwargs,
+        )
+
+        sequence_output = outputs.last_hidden_state
+        logits = self.classifier(sequence_output, attention_mask)
+
+        loss = None
+        if labels is not None:
+            loss_fct = nn.CrossEntropyLoss()
+            loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
+
+        return SequenceClassifierOutput(
+            loss=loss,
+            logits=logits,
+            hidden_states=outputs.hidden_states,
+            attentions=outputs.attentions,
+        )
 
 
 class CustomTrainer(Trainer):
@@ -189,8 +380,6 @@ def main(args):
     # Tokenize dataset
     tokenizer = AutoTokenizer.from_pretrained(args.base_model)
 
-    model_path = args.base_model if args.train else saved_model_name
-
     def tokenize(batch):
         return tokenizer(
             batch["text"], padding="longest", truncation=True, max_length=512
@@ -206,19 +395,18 @@ def main(args):
 
     # Choose the appropriate model
     if args.embedding_model:
-        base_model = AutoModel.from_pretrained(
-            model_path,
-            trust_remote_code=True,
-        )
 
-        base_config = AutoConfig.from_pretrained(model_path, trust_remote_code=True)
-
-        model = CustomSequenceClassification(
-            base_config.hidden_size, base_model, num_labels, use_mean_pooling=True
+        config = AutoConfig.from_pretrained(
+            args.base_model if args.train else saved_model_name, trust_remote_code=True
         )
+        config.num_labels = 2  # Adjust based on your classification task
+        config.model_name_or_path = args.base_model
+        config.pooling_type = "mean"
+        model = CustomClassificationModel(config)
+
     else:
         model = AutoModelForSequenceClassification.from_pretrained(
-            model_path, num_labels=num_labels
+            args.base_model if args.train else saved_model_name, num_labels=num_labels
         )
 
     # Define training arguments
@@ -236,7 +424,7 @@ def main(args):
         metric_for_best_model="loss",
         per_device_train_batch_size=16,
         per_device_eval_batch_size=64,
-        num_train_epochs=5,
+        # num_train_epochs=5,
         seed=42,
         bf16=True,
         tf32=True,

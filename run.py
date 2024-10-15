@@ -211,9 +211,7 @@ def main(args):
             trust_remote_code=True,
         )
 
-        base_config = AutoConfig.from_pretrained(
-            args.base_model, trust_remote_code=True
-        )
+        base_config = AutoConfig.from_pretrained(model_path, trust_remote_code=True)
 
         model = CustomSequenceClassification(
             base_config.hidden_size, base_model, num_labels, use_mean_pooling=True

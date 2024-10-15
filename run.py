@@ -422,7 +422,7 @@ def main(args):
         model = CustomClassificationModel.from_pretrained(
             args.base_model if args.train else saved_model_name,
             num_labels=num_labels,
-            pooling_type="mean",
+            pooling_type=args.pooling_type,
             use_finetuned_weights=not args.train,
         )
 
@@ -434,7 +434,7 @@ def main(args):
     # Define training arguments
     training_args = TrainingArguments(
         output_dir=saved_model_name,
-        learning_rate=3e-5,
+        learning_rate=1e-5,
         eval_strategy="steps",
         eval_steps=500,
         save_strategy="steps",
@@ -487,6 +487,7 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--base_model", type=str, default="microsoft/deberta-v3-base")
+    parser.add_argument("--pooling_type", type=str, default="cls")
     parser.add_argument("--add_synthetic_data", action="store_true")
     parser.add_argument("--train", action="store_true")
     parser.add_argument("--finetuned_model_path", type=str)

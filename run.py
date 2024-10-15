@@ -1,7 +1,7 @@
 import os
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"  # for consistency
-
+from safetensors.torch import load_file
 import argparse
 from datasets import load_dataset, DatasetDict
 
@@ -272,6 +272,21 @@ class CustomClassificationModel(PreTrainedModel):
             hidden_states=outputs.hidden_states,
             attentions=outputs.attentions,
         )
+
+    @classmethod
+    def from_pretrained(cls, model_name_or_path, **kwargs):
+        # Load configuration
+        config = AutoConfig.from_pretrained(model_name_or_path, **kwargs)
+        config.model_name_or_path = model_name_or_path
+
+        # Instantiate the model
+        model = cls(config)
+
+        # Load weights from the .safetensors file
+        model_weights = load_file(f"{model_name_or_path}/model.safetensors")
+        model.load_state_dict(model_weights)
+
+        return model
 
 
 class CustomTrainer(Trainer):

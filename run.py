@@ -273,10 +273,9 @@ class CustomClassificationModel(PreTrainedModel):
             attentions=outputs.attentions,
         )
 
-    """
     @classmethod
     def from_pretrained(cls, model_name_or_path, **kwargs):
-        # Load configuration
+
         config = AutoConfig.from_pretrained(model_name_or_path, **kwargs)
         config.model_name_or_path = model_name_or_path
 
@@ -288,7 +287,6 @@ class CustomClassificationModel(PreTrainedModel):
         model.load_state_dict(model_weights)
 
         return model
-    """
 
 
 class CustomTrainer(Trainer):
@@ -412,15 +410,11 @@ def main(args):
 
     # Choose the appropriate model
     if args.embedding_model:
-
-        config = AutoConfig.from_pretrained(
-            args.base_model if args.train else saved_model_name, trust_remote_code=True
-        )
-        config.num_labels = num_labels
-        config.model_name_or_path = args.base_model if args.train else saved_model_name
-        config.pooling_type = "mean"
         model = CustomClassificationModel.from_pretrained(
-            args.base_model if args.train else saved_model_name
+            args.base_model if args.train else saved_model_name,
+            num_labels=num_labels,
+            pooling_type="mean",
+            trust_remote_code=True,
         )
 
     else:

@@ -276,7 +276,15 @@ class CustomClassificationModel(PreTrainedModel):
     @classmethod
     def from_pretrained(cls, model_name_or_path, **kwargs):
 
-        config = AutoConfig.from_pretrained(model_name_or_path, trust_remote_code=True)
+        config_kwargs = {
+            "trust_remote_code": True,
+        }
+
+        if "stella" in model_name_or_path:
+            config_kwargs["use_memory_efficient_attention"] = False
+            config_kwargs["unpad_inputs"] = False
+
+        config = AutoConfig.from_pretrained(model_name_or_path, **config_kwargs)
         config.pooling_type = kwargs.get("pooling_type", "mean")
         config.num_labels = kwargs.get("num_labels", 2)
         config.model_name_or_path = model_name_or_path

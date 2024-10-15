@@ -258,6 +258,7 @@ def main(args):
         seed=42,
         bf16=True,
         tf32=True,
+        group_by_length=True,
     )
 
     trainer = CustomTrainer(

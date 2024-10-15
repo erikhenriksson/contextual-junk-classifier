@@ -82,7 +82,7 @@ class CustomSequenceClassification(PreTrainedModel):
 
         return {"loss": loss, "logits": logits}
 
-    def save_pretrained(self, save_directory):
+    def save_pretrained(self, save_directory, state_dict=None):
         # Save the configuration file
         self.config.save_pretrained(save_directory)
 
@@ -90,7 +90,9 @@ class CustomSequenceClassification(PreTrainedModel):
         torch.save(self.state_dict(), os.path.join(save_directory, "pytorch_model.bin"))
 
     @classmethod
-    def from_pretrained(cls, pretrained_model_name_or_path, *model_args, **kwargs):
+    def from_pretrained(
+        cls, pretrained_model_name_or_path, *model_args, state_dict=None, **kwargs
+    ):
         # Load configuration
         config = CustomConfig.from_pretrained(pretrained_model_name_or_path)
 
@@ -107,10 +109,12 @@ class CustomSequenceClassification(PreTrainedModel):
             use_mean_pooling=config.use_mean_pooling,
         )
 
-        # Load weights
-        model.load_state_dict(
-            torch.load(os.path.join(pretrained_model_name_or_path, "pytorch_model.bin"))
-        )
+        # Load weights if provided, otherwise from the directory
+        if state_dict is None:
+            state_dict = torch.load(
+                os.path.join(pretrained_model_name_or_path, "pytorch_model.bin")
+            )
+        model.load_state_dict(state_dict)
 
         return model
 
@@ -300,7 +304,7 @@ def main(args):
         eval_dataset=dataset["dev"],
         tokenizer=tokenizer,
         compute_metrics=lambda pred: compute_metrics(pred, label_encoder),
-        callbacks=[EarlyStoppingCallback(early_stopping_patience=5)],
+        callbacks=[EarlyStoppingCallback(early_stopping_patience=1)],
         label_smoothing=0.1,
     )
 

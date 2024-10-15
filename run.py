@@ -397,10 +397,8 @@ def main(args):
         config = AutoConfig.from_pretrained(
             args.base_model if args.train else saved_model_name, trust_remote_code=True
         )
-        config.model_name_or_path = args.base_model if args.train else saved_model_name
-        config.num_labels = num_labels
-
-        model = CustomClassificationModel(config, num_labels=config.num_labels)
+        config.num_labels = 2  # Adjust based on your classification task
+        model = CustomClassificationModel(config, pooling_type="mean")
 
     else:
         model = AutoModelForSequenceClassification.from_pretrained(

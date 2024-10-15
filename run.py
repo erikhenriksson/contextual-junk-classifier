@@ -82,7 +82,7 @@ class CustomSequenceClassification(PreTrainedModel):
 
         return {"loss": loss, "logits": logits}
 
-    def save_pretrained(self, save_directory, state_dict=None):
+    def save_pretrained(self, save_directory):
         # Save the configuration file
         self.config.save_pretrained(save_directory)
 
@@ -90,9 +90,7 @@ class CustomSequenceClassification(PreTrainedModel):
         torch.save(self.state_dict(), os.path.join(save_directory, "pytorch_model.bin"))
 
     @classmethod
-    def from_pretrained(
-        cls, pretrained_model_name_or_path, *model_args, state_dict=None, **kwargs
-    ):
+    def from_pretrained(cls, pretrained_model_name_or_path, *model_args, **kwargs):
         # Load configuration
         config = CustomConfig.from_pretrained(pretrained_model_name_or_path)
 
@@ -109,12 +107,10 @@ class CustomSequenceClassification(PreTrainedModel):
             use_mean_pooling=config.use_mean_pooling,
         )
 
-        # Load weights if provided, otherwise from the directory
-        if state_dict is None:
-            state_dict = torch.load(
-                os.path.join(pretrained_model_name_or_path, "pytorch_model.bin")
-            )
-        model.load_state_dict(state_dict)
+        # Load weights
+        model.load_state_dict(
+            torch.load(os.path.join(pretrained_model_name_or_path, "pytorch_model.bin"))
+        )
 
         return model
 
@@ -321,7 +317,11 @@ def main(args):
 
     if args.train:
         trainer.train()
-        trainer.save_model(saved_model_name)
+        model.base_model.save_pretrained(saved_model_name)
+        torch.save(
+            model.classifier.state_dict(),
+            os.path.join(saved_model_name, "classifier_weights.bin"),
+        )
 
     # Evaluate the model on the test set
     eval_result = trainer.evaluate(eval_dataset=dataset["test"])

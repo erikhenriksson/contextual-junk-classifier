@@ -398,6 +398,7 @@ def main(args):
             args.base_model if args.train else saved_model_name, trust_remote_code=True
         )
         config.num_labels = 2  # Adjust based on your classification task
+        config.model_name_or_path = args.base_model
         model = CustomClassificationModel(config, pooling_type="mean")
 
     else:

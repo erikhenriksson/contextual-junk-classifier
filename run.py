@@ -33,7 +33,7 @@ from transformers import (
     PretrainedConfig,
 )
 
-from linear_dataset import get_data
+# from linear_dataset import get_data
 
 
 # Step 1: Create a custom configuration class if additional parameters are needed
@@ -162,51 +162,31 @@ def main(args):
     dataset = DatasetDict(
         {
             split_name: load_dataset(
-                "json", data_files={split_name: file_path}, split="train"
+                "json",
+                data_files={split_name: file_path},
+                split=split_name,
             )
             for split_name, file_path in data_files.items()
         }
     )
 
-    # Combine all labels from all splits to fit the encoder
-    all_labels = []
-    for split in dataset:
-        all_labels.extend(dataset[split]["label"])
-
     # Initialize and fit LabelEncoder
     label_encoder = LabelEncoder()
-    label_encoder.fit(all_labels)
-
-    # Check the label mappings
-    label_mappings = dict(
-        zip(label_encoder.classes_, label_encoder.transform(label_encoder.classes_))
-    )
-    print("Label mappings:", label_mappings)
+    label_encoder.fit(dataset["train"]["label"])
 
     # Function to encode labels in a dataset
     def encode_labels(example):
-        example["label_encoded"] = label_encoder.transform([example["label"]])[0]
+        example["label"] = label_encoder.transform([example["label"]])[0]
         return example
 
     # Apply the transformation to each split
     dataset = dataset.map(encode_labels)
 
-    # Check the structure of the dataset
-    print(dataset)
-
-    # print an example
-    print(dataset["train"][0])
-    exit()
-
-    data, label_encoder = get_data(
-        downsample_ratio=0.25,
-        add_synthetic_data=args.add_synthetic_data,
+    saved_model_name = (
+        "finetuned_"
+        + args.base_model.replace("/", "_")
+        + ("_with_synth" if args.add_synthetic_data else "")
     )
-
-    suffix = "_multiclass" if args.multiclass else "_binary"
-    use_synth = "_synth" if args.add_synthetic_data else ""
-    smooth = f"_smoothing-{args.label_smoothing}" if args.label_smoothing > 0.0 else ""
-    saved_model_name = f"newdata_{args.base_model.replace('/', '_')}_base_model{suffix}_clean_ratio_{args.downsample_clean_ratio}{smooth}{use_synth}_p{args.patience}"
 
     num_labels = len(label_encoder.classes_)
 
@@ -218,7 +198,7 @@ def main(args):
             batch["text"], padding="longest", truncation=True, max_length=512
         )
 
-    dataset = data.map(tokenize, batched=True)
+    dataset = dataset.map(tokenize, batched=True)
 
     # Shuffle the train split
     dataset["train"] = dataset["train"].shuffle(seed=42)
@@ -276,7 +256,6 @@ def main(args):
         save_total_limit=2,
         load_best_model_at_end=True,
         metric_for_best_model="loss",
-        # greater_is_better=True,
         per_device_train_batch_size=16,
         per_device_eval_batch_size=16,
         num_train_epochs=5,
@@ -291,8 +270,8 @@ def main(args):
         eval_dataset=dataset["dev"],
         tokenizer=tokenizer,
         compute_metrics=lambda pred: compute_metrics(pred, label_encoder),
-        callbacks=[EarlyStoppingCallback(early_stopping_patience=args.patience)],
-        label_smoothing=args.label_smoothing,
+        callbacks=[EarlyStoppingCallback(early_stopping_patience=5)],
+        label_smoothing=0.1,
     )
 
     if args.train:
@@ -308,10 +287,10 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--base_model_name", type=str, default="microsoft/deberta-v3-base"
-    )
+    parser.add_argument("--base_model", type=str, default="microsoft/deberta-v3-base")
     parser.add_argument("--add_synthetic_data", action="store_true")
+    parser.add_argument("--train", action="store_true")
+    parser.add_argument("--embedding_model", action="store_true")
     args = parser.parse_args()
 
     main(args)

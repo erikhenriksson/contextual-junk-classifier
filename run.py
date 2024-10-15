@@ -238,8 +238,15 @@ class CustomClassificationModel(PreTrainedModel):
     def __init__(self, config):
         super().__init__(config)
         self.num_labels = config.num_labels
+        model_kwargs = {
+            "trust_remote_code": True,
+        }
+
+        if "stella" in config.model_name_or_path
+            model_kwargs["use_memory_efficient_attention"] = False
+            model_kwargs["unpad_inputs"] = False
         self.transformer = AutoModel.from_pretrained(
-            config.model_name_or_path, trust_remote_code=True
+            config.model_name_or_path, **model_kwargs
         )
         self.classifier = ImprovedClassificationHead(config)
 
@@ -276,15 +283,7 @@ class CustomClassificationModel(PreTrainedModel):
     @classmethod
     def from_pretrained(cls, model_name_or_path, **kwargs):
 
-        config_kwargs = {
-            "trust_remote_code": True,
-        }
-
-        if "stella" in model_name_or_path:
-            config_kwargs["use_memory_efficient_attention"] = False
-            config_kwargs["unpad_inputs"] = False
-
-        config = AutoConfig.from_pretrained(model_name_or_path, **config_kwargs)
+        config = AutoConfig.from_pretrained(model_name_or_path, trust_remote_code=True)
         config.pooling_type = kwargs.get("pooling_type", "mean")
         config.num_labels = kwargs.get("num_labels", 2)
         config.model_name_or_path = model_name_or_path

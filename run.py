@@ -202,7 +202,9 @@ class CustomClassificationModel(PreTrainedModel):
     def __init__(self, config, num_labels):
         super().__init__(config)
         self.num_labels = num_labels
-        self.transformer = AutoModel.from_pretrained(config.model_name_or_path)
+        self.transformer = AutoModel.from_pretrained(
+            config.model_name_or_path, trust_remote_code=True
+        )
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
         self.classifier = nn.Linear(config.hidden_size, num_labels)
 
@@ -221,8 +223,8 @@ class CustomClassificationModel(PreTrainedModel):
             **kwargs,
         )
 
-        pooled_output = outputs[1]  # Use the pooled output for classification
-        pooled_output = self.dropout(pooled_output)
+        sequence_output = outputs.last_hidden_state
+        pooled_output = self.dropout(sequence_output)
         logits = self.classifier(pooled_output)
 
         loss = None
@@ -361,7 +363,7 @@ def main(args):
     if args.embedding_model:
 
         config = AutoConfig.from_pretrained(
-            args.base_model if args.train else saved_model_name
+            args.base_model if args.train else saved_model_name, trust_remote_code=True
         )
         config.model_name_or_path = args.base_model if args.train else saved_model_name
         config.num_labels = num_labels

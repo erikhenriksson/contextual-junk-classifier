@@ -370,9 +370,13 @@ def main(args):
     dataset = dataset.map(encode_labels)
 
     saved_model_name = (
-        "finetuned_"
-        + args.base_model.replace("/", "_")
-        + ("_with_synth" if args.add_synthetic_data else "")
+        (
+            "finetuned_"
+            + args.base_model.replace("/", "_")
+            + ("_with_synth" if args.add_synthetic_data else "")
+        )
+        if not args.finetuned_model_path
+        else args.finetuned_model_path
     )
 
     num_labels = len(label_encoder.classes_)
@@ -467,6 +471,7 @@ if __name__ == "__main__":
     parser.add_argument("--base_model", type=str, default="microsoft/deberta-v3-base")
     parser.add_argument("--add_synthetic_data", action="store_true")
     parser.add_argument("--train", action="store_true")
+    parser.add_argument("--finetuned_model_path", type=str)
     parser.add_argument("--embedding_model", action="store_true")
     parser.add_argument("--predict_line")
     args = parser.parse_args()

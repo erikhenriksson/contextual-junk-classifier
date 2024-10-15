@@ -207,7 +207,7 @@ def main(args):
     # Choose the appropriate model
     if args.embedding_model:
         base_model = AutoModel.from_pretrained(
-            model_path
+            model_path,
             trust_remote_code=True,
         )
 

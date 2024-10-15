@@ -195,6 +195,19 @@ def run(args):
             model = CustomSequenceClassification(
                 base_config.hidden_size, base_model, num_labels, use_mean_pooling=False
             )
+        else:
+            base_model = AutoModel.from_pretrained(
+                args.base_model,
+                trust_remote_code=True,
+            )
+
+            base_config = AutoConfig.from_pretrained(
+                args.base_model, trust_remote_code=True
+            )
+
+            model = CustomSequenceClassification(
+                base_config.hidden_size, base_model, num_labels, use_mean_pooling=True
+            )
     else:
         model = AutoModelForSequenceClassification.from_pretrained(
             args.base_model if args.train else saved_model_name, num_labels=num_labels

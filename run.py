@@ -276,7 +276,9 @@ class CustomClassificationModel(PreTrainedModel):
     @classmethod
     def from_pretrained(cls, model_name_or_path, **kwargs):
 
-        config = AutoConfig.from_pretrained(model_name_or_path, **kwargs)
+        config = AutoConfig.from_pretrained(model_name_or_path, trust_remote_code=True)
+        config.pooling_type = kwargs.get("pooling_type", "mean")
+        config.num_labels = kwargs.get("num_labels", 2)
         config.model_name_or_path = model_name_or_path
 
         # Instantiate the model
@@ -414,7 +416,6 @@ def main(args):
             args.base_model if args.train else saved_model_name,
             num_labels=num_labels,
             pooling_type="mean",
-            trust_remote_code=True,
         )
 
     else:

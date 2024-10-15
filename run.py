@@ -1,4 +1,7 @@
 import os
+
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"  # for consistency
+
 import argparse
 from datasets import load_dataset, DatasetDict
 
@@ -21,8 +24,6 @@ from sklearn.metrics import (
     classification_report,
 )
 
-from sklearn.utils.class_weight import compute_class_weight
-
 from transformers import (
     EarlyStoppingCallback,
     Trainer,
@@ -33,10 +34,7 @@ from transformers import (
     PretrainedConfig,
 )
 
-# from linear_dataset import get_data
 
-
-# Step 1: Create a custom configuration class if additional parameters are needed
 class CustomConfig(PretrainedConfig):
     def __init__(self, num_labels=2, use_mean_pooling=True, **kwargs):
         super().__init__(**kwargs)
@@ -46,7 +44,6 @@ class CustomConfig(PretrainedConfig):
 
 class CustomSequenceClassification(PreTrainedModel):
     def __init__(self, hidden_size, base_model, num_labels, use_mean_pooling=True):
-
         config = CustomConfig(
             num_labels=num_labels,
             use_mean_pooling=use_mean_pooling,
@@ -65,7 +62,6 @@ class CustomSequenceClassification(PreTrainedModel):
         )
 
         if self.use_mean_pooling:
-            # Use mean pooling
             token_embeddings = outputs.last_hidden_state
             input_mask_expanded = (
                 attention_mask.unsqueeze(-1).expand(token_embeddings.size()).float()
@@ -246,7 +242,7 @@ def main(args):
     # Define training arguments
     training_args = TrainingArguments(
         output_dir=saved_model_name,
-        learning_rate=3e-5,  # Adjust this if needed for scaling
+        learning_rate=3e-5,
         eval_strategy="steps",
         eval_steps=500,
         save_strategy="steps",

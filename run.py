@@ -242,7 +242,7 @@ class CustomClassificationModel(PreTrainedModel):
             "trust_remote_code": True,
         }
 
-        if "stella" in config.model_name_or_path
+        if "stella" in config.model_name_or_path:
             model_kwargs["use_memory_efficient_attention"] = False
             model_kwargs["unpad_inputs"] = False
         self.transformer = AutoModel.from_pretrained(

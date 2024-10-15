@@ -273,7 +273,7 @@ def main(args):
     if args.predict_line:
         # predict just one line with the loaded model
         line = args.predict_line
-        inputs = tokenizer(line, return_tensors="pt")
+        inputs = tokenizer(line, return_tensors="pt").to("cuda")
         outputs = model(**inputs)
         logits = outputs.get("logits")
         predicted_class_idx = logits.argmax().item()

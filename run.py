@@ -412,7 +412,7 @@ def main(args):
     if args.embedding_model:
 
         config = AutoConfig.from_pretrained(
-            args.base_model if args.train else saved_model_name, trust_remote_code=True
+            args.base_model, trust_remote_code=True
         )
         config.num_labels = num_labels
         config.model_name_or_path = args.base_model if args.train else saved_model_name

@@ -369,14 +369,10 @@ def main(args):
     # Apply the transformation to each split
     dataset = dataset.map(encode_labels)
 
-    saved_model_name = (
-        (
-            "finetuned_"
-            + args.base_model.replace("/", "_")
-            + ("_with_synth" if args.add_synthetic_data else "")
-        )
-        if not args.finetuned_model_path
-        else args.finetuned_model_path
+    saved_model_name = args.finetuned_model_path or (
+        "finetuned_"
+        + args.base_model.replace("/", "_")
+        + ("_with_synth" if args.add_synthetic_data else "")
     )
 
     num_labels = len(label_encoder.classes_)
@@ -404,7 +400,7 @@ def main(args):
             args.base_model if args.train else saved_model_name, trust_remote_code=True
         )
         config.num_labels = num_labels
-        config.model_name_or_path = args.base_model
+        config.model_name_or_path = args.base_model if args.train else saved_model_name
         config.pooling_type = "mean"
         model = CustomClassificationModel(config)
 

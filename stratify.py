@@ -25,7 +25,7 @@ with open(file_path, "r") as f:
 # Downsample the "clean" class with a ratio of 0.25
 clean_data = [item for item in data if item["label"] == "clean"]
 junk_data = [item for item in data if item["label"] != "clean"]
-clean_data = random.sample(clean_data, int(len(clean_data) * 0.25))
+clean_data = random.sample(clean_data, int(len(clean_data) * 0.3))
 data = clean_data + junk_data
 
 # Stratify and split data

@@ -8,6 +8,7 @@ from torch.utils.data import DataLoader
 import json
 from tqdm import tqdm
 from scipy.special import softmax
+import joblib
 
 
 def run(model_name, model, tokenizer, dataset_test, label_encoder, tune=False):
@@ -115,4 +116,8 @@ def run(model_name, model, tokenizer, dataset_test, label_encoder, tune=False):
             f.write(json_line + "\n")
 
     print(f"Original and calibrated probabilities saved to {output_file}")
-    return calibrated_probs
+
+    # Save the Platt scaler to a file
+    scaler_filename = f"platt_scaler_{model_name}.joblib"
+    joblib.dump(platt_scaler, scaler_filename)
+    print(f"Platt scaler saved to {scaler_filename}")

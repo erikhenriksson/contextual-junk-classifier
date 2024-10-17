@@ -4,39 +4,56 @@ import joblib
 import torch
 
 
-def predict(batch, model, tokenizer, platt_scaler, label_encoder, target_class="clean"):
-    # Tokenize the batch
-    inputs = tokenizer(
-        batch["text"], return_tensors="pt", padding=True, truncation=True
-    )
-
-    # Move model and inputs to device
+def predict(
+    text_batch, model, tokenizer, platt_scaler, label_encoder, target_class="clean"
+):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model.to(device)
-    inputs = {key: val.to(device) for key, val in inputs.items()}
 
-    # Run the model to get logits
-    with torch.no_grad():
-        outputs = model(**inputs)
-        logits = outputs.logits
+    # Store scaled probabilities for each text in the batch
+    all_scaled_probs = []
 
-    # Get the target class logits
-    target_class_index = label_encoder.transform([target_class])[0]
-    positive_logits = logits[:, target_class_index].cpu().numpy()
+    for text in text_batch:
+        # Split the text into lines
+        lines = text.splitlines()
 
-    # Apply Platt scaling
-    scaled_probs = platt_scaler.predict_proba(positive_logits.reshape(-1, 1))[:, 1]
+        # Process the lines in smaller batches
+        line_probs = []
+        for i in range(0, len(lines), 64):
+            line_batch = lines[i : i + 64]
+            inputs = tokenizer(
+                line_batch, return_tensors="pt", padding=True, truncation=True
+            ).to(device)
 
-    # Add the scaled probabilities to the batch
-    batch["scaled_probs"] = [
-        round(prob, 2) for prob in scaled_probs
-    ]  # Rounding to two decimals
-    return batch
+            with torch.no_grad():
+                outputs = model(**inputs)
+                logits = outputs.logits.cpu().numpy()  # Move logits to CPU
+
+            # Extract logits for the target class
+            target_class_index = label_encoder.transform([target_class])[0]
+            positive_logits = logits[:, target_class_index]
+
+            # Apply Platt scaling on the logits
+            scaled_probs = platt_scaler.predict_proba(positive_logits.reshape(-1, 1))[
+                :, 1
+            ]
+            line_probs.extend(
+                [round(prob, 2) for prob in scaled_probs]
+            )  # Round to two decimals
+
+            # Free up memory
+            del outputs
+            torch.cuda.empty_cache()
+
+        # Append the list of line probabilities for this text
+        all_scaled_probs.append(line_probs)
+
+    return all_scaled_probs
 
 
 def run(model_name, model, tokenizer, label_encoder, target_class="clean"):
     platt_scaler = joblib.load(f"platt_scaler_{model_name}.joblib")
-
+    model.half()
+    model.eval()
     # Use streaming to load data row by row
     dataset = load_dataset("HuggingFaceFW/fineweb", split="train", name="sample-10BT")
 
@@ -44,7 +61,6 @@ def run(model_name, model, tokenizer, label_encoder, target_class="clean"):
     output_dir = "exquisiteweb"
     checkpoint_file = os.path.join(output_dir, "checkpoint.txt")
     shard_size = 10000  # Set a larger shard size for saving
-    batch_size = 32  # Smaller batch size for inference processing
     shard = []
     shard_idx = 0
 
@@ -68,28 +84,19 @@ def run(model_name, model, tokenizer, label_encoder, target_class="clean"):
         current_row += 1
 
         if len(shard) == shard_size:
-            # Process in smaller batches
-            modified_batches = []
-            for i in range(0, shard_size, batch_size):
-                batch = shard[i : i + batch_size]
-                batch_dataset = Dataset.from_list(batch)
+            # Extract the 'text' field and process the lines
+            text_batch = [item["text"] for item in shard]
+            scaled_probs_batch = predict(
+                text_batch, model, tokenizer, platt_scaler, label_encoder, target_class
+            )
 
-                # Apply prediction function on the batch
-                modified_batch = batch_dataset.map(
-                    lambda b: predict(
-                        b, model, tokenizer, platt_scaler, label_encoder, target_class
-                    ),
-                    batched=True,
-                )
+            # Store the scaled probabilities back in each item of the shard
+            for item, scaled_probs in zip(shard, scaled_probs_batch):
+                item["scaled_probs"] = scaled_probs
 
-                # Collect the modified batch
-                modified_batches.append(modified_batch)
-
-            # Concatenate all modified batches into a single shard
-            modified_shard = Dataset.concatenate(modified_batches)
-
-            # Save the modified shard to disk
-            modified_shard.save_to_disk(os.path.join(output_dir, f"shard_{shard_idx}"))
+            # Convert shard to Dataset and save
+            shard_dataset = Dataset.from_list(shard)
+            shard_dataset.save_to_disk(os.path.join(output_dir, f"shard_{shard_idx}"))
 
             # Update the checkpoint file
             shard_idx += 1
@@ -101,30 +108,16 @@ def run(model_name, model, tokenizer, label_encoder, target_class="clean"):
 
     # Save any remaining rows as the final shard
     if shard:
-        modified_batches = []
+        text_batch = [item["text"] for item in shard]
+        scaled_probs_batch = predict(
+            text_batch, model, tokenizer, platt_scaler, label_encoder, target_class
+        )
 
-        # Process in smaller batches for the last shard
-        for i in range(0, len(shard), batch_size):
-            batch = shard[i : i + batch_size]
-            batch_dataset = Dataset.from_list(batch)
+        for item, scaled_probs in zip(shard, scaled_probs_batch):
+            item["scaled_probs"] = scaled_probs
 
-            # Apply prediction function on the batch
-            modified_batch = batch_dataset.map(
-                lambda b: predict(
-                    b, model, tokenizer, platt_scaler, label_encoder, target_class
-                ),
-                batched=True,
-            )
+        shard_dataset = Dataset.from_list(shard)
+        shard_dataset.save_to_disk(os.path.join(output_dir, f"shard_{shard_idx}"))
 
-            # Collect the modified batch
-            modified_batches.append(modified_batch)
-
-        # Concatenate all modified batches into a single shard
-        modified_shard = Dataset.concatenate(modified_batches)
-
-        # Save the modified shard to disk
-        modified_shard.save_to_disk(os.path.join(output_dir, f"shard_{shard_idx}"))
-
-        # Update the checkpoint file for the last shard
         with open(checkpoint_file, "w") as f:
             f.write(str(shard_idx + 1))

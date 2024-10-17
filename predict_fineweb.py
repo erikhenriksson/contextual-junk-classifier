@@ -4,6 +4,7 @@ os.environ["HF_HOME"] = ".hf/hf_home"
 from datasets import load_dataset, Dataset
 import joblib
 import torch
+import numpy as np
 from scipy.special import softmax
 
 
@@ -37,9 +38,9 @@ def predict(batch, model, tokenizer, platt_scaler, label_encoder, target_class="
     ]  # Binary probability for target class
 
     # Add the binary probabilities to the batch
-    batch["scaled_probs"] = (
-        scaled_probs.tolist()
-    )  # Convert to list for compatibility with the dataset
+    batch["scaled_probs"] = np.round(
+        scaled_probs, 4
+    ).tolist()  # Convert to list for compatibility with the dataset
 
     print(batch)
     exit()

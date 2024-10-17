@@ -93,6 +93,8 @@ def run(model_name, model, tokenizer, label_encoder, target_class="clean"):
             # Store the scaled probabilities back in each item of the shard
             for item, scaled_probs in zip(shard, scaled_probs_batch):
                 item["scaled_probs"] = scaled_probs
+                print(item)
+                exit()
 
             # Convert shard to Dataset and save
             shard_dataset = Dataset.from_list(shard)

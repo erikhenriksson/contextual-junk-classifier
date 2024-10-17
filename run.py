@@ -364,9 +364,9 @@ def main(args):
 
     # Load each split into a Dataset
     data_files = {
-        "train": f"data/train{'_synth' if args.add_synthetic_data else ''}.jsonl",
-        "test": "data/test.jsonl",
-        "dev": "data/dev.jsonl",
+        "train": f"data/free_train{'_synth' if args.add_synthetic_data else ''}.jsonl",
+        "test": "data/free_test.jsonl",
+        "dev": "data/free_dev.jsonl",
     }
 
     # Load the JSONL files as a DatasetDict
@@ -394,7 +394,7 @@ def main(args):
     dataset = dataset.map(encode_labels)
 
     saved_model_name = args.finetuned_model_path or (
-        "finetuned_"
+        "free_finetuned_"
         + args.base_model.replace("/", "_")
         + ("_with_synth" if args.add_synthetic_data else "")
     )

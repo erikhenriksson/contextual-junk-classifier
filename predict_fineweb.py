@@ -50,7 +50,6 @@ def predict(batch, model, tokenizer, platt_scaler, label_encoder, target_class="
 
 def run(model_name, model, tokenizer, label_encoder, target_class="clean"):
     platt_scaler = joblib.load(f"platt_scaler_{model_name}.joblib")
-    label_encoder = joblib.load(f"label_encoder_{model_name}.joblib")
 
     # Use streaming to load data row by row
     dataset = load_dataset("HuggingFaceFW/fineweb", split="train", name="sample-10BT")

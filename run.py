@@ -277,7 +277,12 @@ def main(args):
 
     if args.platt or args.platt_tune:
         platt_scaler.run(
-            model, tokenizer, dataset["test"], label_encoder, args.platt_tune
+            saved_model_name,
+            model,
+            tokenizer,
+            dataset["test"],
+            label_encoder,
+            args.platt_tune,
         )
         exit()
 

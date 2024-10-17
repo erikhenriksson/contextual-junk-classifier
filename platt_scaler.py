@@ -10,7 +10,7 @@ from tqdm import tqdm
 from scipy.special import softmax
 
 
-def run(model, tokenizer, dataset_test, label_encoder, tune=False):
+def run(model_name, model, tokenizer, dataset_test, label_encoder, tune=False):
 
     def tokenize(batch):
         # Ensure padding and truncation are applied directly in the tokenizer
@@ -100,7 +100,7 @@ def run(model, tokenizer, dataset_test, label_encoder, tune=False):
     calibrated_probs = platt_scaler.predict_proba(positive_logits.reshape(-1, 1))[:, 1]
 
     # Save texts, original probabilities, and calibrated probabilities to a JSON Lines file
-    output_file = f"calibrated_results_{args.local_model}.jsonl"
+    output_file = f"calibrated_results_{model_name}.jsonl"
     with open(output_file, "w") as f:
         for text, orig_prob, cal_prob in zip(texts, original_probs, calibrated_probs):
             json_line = json.dumps(

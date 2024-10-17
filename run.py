@@ -339,7 +339,7 @@ def main(args):
 
     if args.predict_fineweb:
         predict_fineweb.run(
-            saved_model_name, model.to("cuda"), tokenizer
+            saved_model_name, model.to("cuda"), tokenizer, label_encoder, "clean"
         )
 
 

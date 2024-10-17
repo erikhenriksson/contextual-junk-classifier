@@ -47,46 +47,73 @@ def predict(batch, model, tokenizer, platt_scaler, label_encoder, target_class="
     return batch
 
 
-def run(model_name, model, tokenizer, label_encoder):
-    model.half()
-    model.eval()
+def run(model_name, model, tokenizer, target_class="clean"):
     platt_scaler = joblib.load(f"platt_scaler_{model_name}.joblib")
+    label_encoder = joblib.load(f"label_encoder_{model_name}.joblib")
 
-    # Use streaming to load data shard by shard
+    # Use streaming to load data row by row
     dataset = load_dataset(
         "HuggingFaceFW/fineweb", split="train", name="sample-10BT", streaming=True
     )
 
-    # Output directory for modified shards
+    # Set up parameters
     output_dir = "exquisiteweb"
     checkpoint_file = os.path.join(output_dir, "checkpoint.txt")
-    start_shard_idx = 0
+    shard_size = 10000  # Set a larger shard size
+    shard = []
+    shard_idx = 0
 
-    # Ensure the output directory exists
     os.makedirs(output_dir, exist_ok=True)
 
     # Check if a checkpoint exists
     if os.path.exists(checkpoint_file):
         with open(checkpoint_file, "r") as f:
-            start_shard_idx = int(f.read().strip())
+            shard_idx = int(f.read().strip())
 
-    # Process each shard independently, resuming from the last completed one
-    for shard_idx, shard in enumerate(dataset):
-        # Skip already processed shards
-        if shard_idx < start_shard_idx:
+    # Resume from the next shard if checkpoint exists
+    current_row = 0
+    for example in dataset:
+        # If a checkpoint exists, skip processed rows
+        if current_row < shard_idx * shard_size:
+            current_row += 1
             continue
 
-        shard_dataset = Dataset.from_dict(shard)
+        # Accumulate rows until the shard size is reached
+        shard.append(example)
+        current_row += 1
 
-        # Use batched=True to process the shard in batches
+        if len(shard) == shard_size:
+            # Convert shard to Dataset and apply processing
+            shard_dataset = Dataset.from_list(shard)
+            modified_shard = shard_dataset.map(
+                lambda b: predict(
+                    b, model, tokenizer, platt_scaler, label_encoder, target_class
+                ),
+                batched=True,
+            )
+
+            # Save the modified shard to disk
+            modified_shard.save_to_disk(os.path.join(output_dir, f"shard_{shard_idx}"))
+
+            # Update the checkpoint file
+            shard_idx += 1
+            with open(checkpoint_file, "w") as f:
+                f.write(str(shard_idx))
+
+            # Clear the shard to start the next one
+            shard = []
+
+    # Save any remaining rows as the final shard
+    if shard:
+        shard_dataset = Dataset.from_list(shard)
         modified_shard = shard_dataset.map(
-            lambda batch: predict(batch, model, tokenizer, platt_scaler, label_encoder),
+            lambda b: predict(
+                b, model, tokenizer, platt_scaler, label_encoder, target_class
+            ),
             batched=True,
         )
 
-        # Save the modified shard
         modified_shard.save_to_disk(os.path.join(output_dir, f"shard_{shard_idx}"))
 
-        # Update the checkpoint file
         with open(checkpoint_file, "w") as f:
             f.write(str(shard_idx + 1))

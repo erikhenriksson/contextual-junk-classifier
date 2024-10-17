@@ -35,7 +35,7 @@ from transformers import (
     AutoModelForSequenceClassification,
 )
 
-import platt_scaler
+import platt_scaler, predict_fineweb
 
 
 class ImprovedClassificationHead(nn.Module):
@@ -275,6 +275,47 @@ def main(args):
             load_model_name, num_labels=num_labels
         )
 
+    if args.train:
+        # Define training arguments
+        training_args = TrainingArguments(
+            output_dir=saved_model_name,
+            learning_rate=1e-5,
+            eval_strategy="steps",
+            eval_steps=500,
+            save_strategy="steps",
+            logging_dir=f"{saved_model_name}/logs",
+            logging_steps=100,
+            save_steps=500,
+            save_total_limit=2,
+            load_best_model_at_end=True,
+            metric_for_best_model="loss",
+            per_device_train_batch_size=16,
+            per_device_eval_batch_size=64,
+            num_train_epochs=5,
+            seed=42,
+            bf16=True,
+            tf32=True,
+            group_by_length=True,
+        )
+
+        trainer = CustomTrainer(
+            model=model,
+            args=training_args,
+            train_dataset=dataset["train"],
+            eval_dataset=dataset["dev"],
+            tokenizer=tokenizer,
+            compute_metrics=lambda pred: compute_metrics(pred, label_encoder),
+            callbacks=[EarlyStoppingCallback(early_stopping_patience=5)],
+            label_smoothing=0.1,
+        )
+        trainer.train()
+        trainer.save_model(saved_model_name)
+
+    if args.test or args.train:
+        # Evaluate the model on the test set
+        eval_result = trainer.evaluate(eval_dataset=dataset["test"])
+        print(f"Test set evaluation results: {eval_result}")
+
     if args.platt or args.platt_tune:
         platt_scaler.run(
             saved_model_name,
@@ -284,40 +325,6 @@ def main(args):
             label_encoder,
             args.platt_tune,
         )
-        exit()
-
-    # Define training arguments
-    training_args = TrainingArguments(
-        output_dir=saved_model_name,
-        learning_rate=1e-5,
-        eval_strategy="steps",
-        eval_steps=500,
-        save_strategy="steps",
-        logging_dir=f"{saved_model_name}/logs",
-        logging_steps=100,
-        save_steps=500,
-        save_total_limit=2,
-        load_best_model_at_end=True,
-        metric_for_best_model="loss",
-        per_device_train_batch_size=16,
-        per_device_eval_batch_size=64,
-        num_train_epochs=5,
-        seed=42,
-        bf16=True,
-        tf32=True,
-        group_by_length=True,
-    )
-
-    trainer = CustomTrainer(
-        model=model,
-        args=training_args,
-        train_dataset=dataset["train"],
-        eval_dataset=dataset["dev"],
-        tokenizer=tokenizer,
-        compute_metrics=lambda pred: compute_metrics(pred, label_encoder),
-        callbacks=[EarlyStoppingCallback(early_stopping_patience=5)],
-        label_smoothing=0.1,
-    )
 
     if args.predict_line:
         # predict just one line with the loaded model
@@ -330,13 +337,10 @@ def main(args):
         print(f"Predicted class for line '{line}': {predicted_class}")
         exit()
 
-    if args.train:
-        trainer.train()
-        trainer.save_model(saved_model_name)
-
-    # Evaluate the model on the test set
-    eval_result = trainer.evaluate(eval_dataset=dataset["test"])
-    print(f"Test set evaluation results: {eval_result}")
+    if args.predict_fineweb:
+        predict_fineweb.run(
+            saved_model_name, model.to("cuda"), tokenizer
+        )
 
 
 if __name__ == "__main__":
@@ -345,11 +349,13 @@ if __name__ == "__main__":
     parser.add_argument("--pooling_type", type=str, default="cls")
     parser.add_argument("--add_synthetic_data", action="store_true")
     parser.add_argument("--train", action="store_true")
+    parser.add_argument("--test", action="store_true")
     parser.add_argument("--finetuned_model_path", type=str)
     parser.add_argument("--embedding_model", action="store_true")
     parser.add_argument("--platt", action="store_true")
     parser.add_argument("--platt_tune", action="store_true")
     parser.add_argument("--predict_line")
+    parser.add_argument("--predict_fineweb", action="store_true")
     args = parser.parse_args()
 
     main(args)

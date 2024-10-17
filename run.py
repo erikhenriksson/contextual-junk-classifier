@@ -278,7 +278,7 @@ def main(args):
     if args.platt or args.platt_tune:
         platt_scaler.run(
             saved_model_name,
-            model,
+            model.to("cuda"),
             tokenizer,
             dataset["test"],
             label_encoder,

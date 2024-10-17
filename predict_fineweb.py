@@ -9,42 +9,34 @@ from scipy.special import softmax
 
 
 def predict(batch, model, tokenizer, platt_scaler, label_encoder, target_class="clean"):
-    # Tokenize the input texts in the batch
+    # Tokenize the batch
     inputs = tokenizer(
         batch["text"], return_tensors="pt", padding=True, truncation=True
     )
 
-    # Ensure the model and tokenizer are on the same device
+    # Move model and inputs to device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
     inputs = {key: val.to(device) for key, val in inputs.items()}
 
-    # Pass inputs through the model to get logits
+    # Run the model to get logits
     with torch.no_grad():
         outputs = model(**inputs)
-        logits = outputs.logits  # Shape: [num_samples, num_classes]
+        logits = outputs.logits
 
-    # Get the index for the target class
+    # Get the target class logits
     target_class_index = label_encoder.transform([target_class])[0]
+    positive_logits = logits[:, target_class_index].cpu().numpy()
 
-    # Extract the logits for the target class
-    positive_logits = (
-        logits[:, target_class_index].cpu().numpy()
-    )  # Shape: [num_samples]
+    # Apply Platt scaling
+    scaled_probs = platt_scaler.predict_proba(positive_logits.reshape(-1, 1))[:, 1]
 
-    # Apply Platt scaling on the positive logits
-    scaled_probs = platt_scaler.predict_proba(positive_logits.reshape(-1, 1))[
-        :, 1
-    ]  # Binary probability for target class
-
-    # Add the binary probabilities to the batch
-    batch["scaled_probs"] = np.round(
-        scaled_probs, 4
-    ).tolist()  # Convert to list for compatibility with the dataset
-
+    # Add the scaled probabilities to the batch
+    batch["scaled_probs"] = [
+        round(prob, 4) for prob in scaled_probs
+    ]  # Rounding to two decimals
     print(batch)
     exit()
-
     return batch
 
 
@@ -52,12 +44,15 @@ def run(model_name, model, tokenizer, label_encoder, target_class="clean"):
     platt_scaler = joblib.load(f"platt_scaler_{model_name}.joblib")
 
     # Use streaming to load data row by row
-    dataset = load_dataset("HuggingFaceFW/fineweb", split="train", name="sample-10BT")
+    dataset = load_dataset(
+        "HuggingFaceFW/fineweb", split="train", name="sample-10BT", streaming=True
+    )
 
     # Set up parameters
     output_dir = "exquisiteweb"
     checkpoint_file = os.path.join(output_dir, "checkpoint.txt")
-    shard_size = 10000  # Set a larger shard size
+    shard_size = 10000  # Set a larger shard size for saving
+    batch_size = 64  # Smaller batch size for inference processing
     shard = []
     shard_idx = 0
 
@@ -81,14 +76,28 @@ def run(model_name, model, tokenizer, label_encoder, target_class="clean"):
         current_row += 1
 
         if len(shard) == shard_size:
-            # Convert shard to Dataset and apply processing
+            # Convert shard to Dataset
             shard_dataset = Dataset.from_list(shard)
-            modified_shard = shard_dataset.map(
-                lambda b: predict(
-                    b, model, tokenizer, platt_scaler, label_encoder, target_class
-                ),
-                batched=True,
-            )
+            modified_batches = []
+
+            # Process in smaller batches
+            for i in range(0, shard_size, batch_size):
+                batch = shard[i : i + batch_size]
+                batch_dataset = Dataset.from_list(batch)
+
+                # Apply prediction function on the batch
+                modified_batch = batch_dataset.map(
+                    lambda b: predict(
+                        b, model, tokenizer, platt_scaler, label_encoder, target_class
+                    ),
+                    batched=True,
+                )
+
+                # Collect the modified batch
+                modified_batches.append(modified_batch)
+
+            # Concatenate all modified batches into a single shard
+            modified_shard = Dataset.concatenate(modified_batches)
 
             # Save the modified shard to disk
             modified_shard.save_to_disk(os.path.join(output_dir, f"shard_{shard_idx}"))
@@ -104,14 +113,30 @@ def run(model_name, model, tokenizer, label_encoder, target_class="clean"):
     # Save any remaining rows as the final shard
     if shard:
         shard_dataset = Dataset.from_list(shard)
-        modified_shard = shard_dataset.map(
-            lambda b: predict(
-                b, model, tokenizer, platt_scaler, label_encoder, target_class
-            ),
-            batched=True,
-        )
+        modified_batches = []
 
+        # Process in smaller batches for the last shard
+        for i in range(0, len(shard), batch_size):
+            batch = shard[i : i + batch_size]
+            batch_dataset = Dataset.from_list(batch)
+
+            # Apply prediction function on the batch
+            modified_batch = batch_dataset.map(
+                lambda b: predict(
+                    b, model, tokenizer, platt_scaler, label_encoder, target_class
+                ),
+                batched=True,
+            )
+
+            # Collect the modified batch
+            modified_batches.append(modified_batch)
+
+        # Concatenate all modified batches into a single shard
+        modified_shard = Dataset.concatenate(modified_batches)
+
+        # Save the modified shard to disk
         modified_shard.save_to_disk(os.path.join(output_dir, f"shard_{shard_idx}"))
 
+        # Update the checkpoint file for the last shard
         with open(checkpoint_file, "w") as f:
             f.write(str(shard_idx + 1))

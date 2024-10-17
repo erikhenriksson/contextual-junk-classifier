@@ -1,11 +1,7 @@
 import os
-
-os.environ["HF_HOME"] = ".hf/hf_home"
 from datasets import load_dataset, Dataset
 import joblib
 import torch
-import numpy as np
-from scipy.special import softmax
 
 
 def predict(batch, model, tokenizer, platt_scaler, label_encoder, target_class="clean"):
@@ -33,10 +29,8 @@ def predict(batch, model, tokenizer, platt_scaler, label_encoder, target_class="
 
     # Add the scaled probabilities to the batch
     batch["scaled_probs"] = [
-        round(prob, 4) for prob in scaled_probs
+        round(prob, 2) for prob in scaled_probs
     ]  # Rounding to two decimals
-    print(batch)
-    exit()
     return batch
 
 
@@ -50,7 +44,7 @@ def run(model_name, model, tokenizer, label_encoder, target_class="clean"):
     output_dir = "exquisiteweb"
     checkpoint_file = os.path.join(output_dir, "checkpoint.txt")
     shard_size = 10000  # Set a larger shard size for saving
-    batch_size = 64  # Smaller batch size for inference processing
+    batch_size = 32  # Smaller batch size for inference processing
     shard = []
     shard_idx = 0
 
@@ -74,11 +68,8 @@ def run(model_name, model, tokenizer, label_encoder, target_class="clean"):
         current_row += 1
 
         if len(shard) == shard_size:
-            # Convert shard to Dataset
-            shard_dataset = Dataset.from_list(shard)
-            modified_batches = []
-
             # Process in smaller batches
+            modified_batches = []
             for i in range(0, shard_size, batch_size):
                 batch = shard[i : i + batch_size]
                 batch_dataset = Dataset.from_list(batch)
@@ -110,7 +101,6 @@ def run(model_name, model, tokenizer, label_encoder, target_class="clean"):
 
     # Save any remaining rows as the final shard
     if shard:
-        shard_dataset = Dataset.from_list(shard)
         modified_batches = []
 
         # Process in smaller batches for the last shard

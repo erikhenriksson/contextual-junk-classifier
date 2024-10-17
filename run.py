@@ -2,7 +2,7 @@ import os
 
 os.environ["HF_HOME"] = ".hf/hf_home"
 
-# os.environ["CUDA_VISIBLE_DEVICES"] = "0"  # for consistency
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"  # for consistency
 from safetensors.torch import load_file
 import argparse
 from datasets import load_dataset, DatasetDict

@@ -21,7 +21,7 @@ def run(model, tokenizer, dataset_test, label_encoder, tune=False):
     test_dataset = dataset_test.map(tokenize, batched=True)
 
     # Remove columns that are not tensors
-    test_dataset = test_dataset.remove_columns(["text"])
+    test_dataset = test_dataset.remove_columns(["line"])
 
     # Set dataset format to PyTorch tensors
     test_dataset.set_format(

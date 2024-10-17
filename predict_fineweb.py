@@ -25,7 +25,11 @@ def predict(
         for i in range(0, len(lines), 64):
             line_batch = lines[i : i + 64]
             inputs = tokenizer(
-                line_batch, return_tensors="pt", padding=True, truncation=True
+                line_batch,
+                return_tensors="pt",
+                padding=True,
+                truncation=True,
+                max_length=512,
             ).to(device)
 
             with torch.no_grad():

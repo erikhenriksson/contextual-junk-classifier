@@ -2,6 +2,9 @@ import os
 from datasets import load_dataset, Dataset
 import joblib
 import torch
+import warnings
+
+warnings.simplefilter(action="ignore", category=FutureWarning)
 
 
 def predict(
@@ -60,7 +63,7 @@ def run(model_name, model, tokenizer, label_encoder, target_class="clean"):
     # Set up parameters
     output_dir = "exquisiteweb"
     checkpoint_file = os.path.join(output_dir, "checkpoint.txt")
-    shard_size = 10000  # Set a larger shard size for saving
+    shard_size = 100  # Set a larger shard size for saving
     shard = []
     shard_idx = 0
 

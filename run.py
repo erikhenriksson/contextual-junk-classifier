@@ -406,7 +406,7 @@ def main(args):
 
     def tokenize(batch):
         return tokenizer(
-            batch["text"], padding="longest", truncation=True, max_length=512
+            batch["line"], padding="longest", truncation=True, max_length=512
         )
 
     dataset = dataset.map(tokenize, batched=True)

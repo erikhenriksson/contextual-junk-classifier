@@ -40,7 +40,7 @@ def predict(
                 :, 1
             ]
             line_probs.extend(
-                [round(prob, 2) for prob in scaled_probs]
+                [round(prob, 4) for prob in scaled_probs.tolist()]
             )  # Round to two decimals
 
             # Free up memory
@@ -95,9 +95,10 @@ def run(model_name, model, tokenizer, label_encoder, target_class="clean"):
 
             # Store the scaled probabilities back in each item of the shard
             for item, scaled_probs in zip(shard, scaled_probs_batch):
-                item["scaled_probs"] = scaled_probs
+                item["line_quality"] = scaled_probs
                 print(item)
-                exit()
+
+            exit()
 
             # Convert shard to Dataset and save
             shard_dataset = Dataset.from_list(shard)
@@ -119,7 +120,7 @@ def run(model_name, model, tokenizer, label_encoder, target_class="clean"):
         )
 
         for item, scaled_probs in zip(shard, scaled_probs_batch):
-            item["scaled_probs"] = scaled_probs
+            item["line_quality"] = scaled_probs
 
         shard_dataset = Dataset.from_list(shard)
         shard_dataset.save_to_disk(os.path.join(output_dir, f"shard_{shard_idx}"))

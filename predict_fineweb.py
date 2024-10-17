@@ -44,9 +44,7 @@ def run(model_name, model, tokenizer, label_encoder, target_class="clean"):
     platt_scaler = joblib.load(f"platt_scaler_{model_name}.joblib")
 
     # Use streaming to load data row by row
-    dataset = load_dataset(
-        "HuggingFaceFW/fineweb", split="train", name="sample-10BT", streaming=True
-    )
+    dataset = load_dataset("HuggingFaceFW/fineweb", split="train", name="sample-10BT")
 
     # Set up parameters
     output_dir = "exquisiteweb"

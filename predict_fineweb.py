@@ -3,6 +3,7 @@ from datasets import load_dataset, Dataset
 import joblib
 import torch
 import warnings
+from tqdm import tqdm
 
 warnings.simplefilter(action="ignore", category=FutureWarning)
 
@@ -15,7 +16,7 @@ def predict(
     # Store scaled probabilities for each text in the batch
     all_scaled_probs = []
 
-    for text in text_batch:
+    for text in tqdm(text_batch, desc="Processing text batch"):
         # Split the text into lines
         lines = text.splitlines()
 
@@ -63,7 +64,7 @@ def run(model_name, model, tokenizer, label_encoder, target_class="clean"):
     # Set up parameters
     output_dir = "exquisiteweb"
     checkpoint_file = os.path.join(output_dir, "checkpoint.txt")
-    shard_size = 100  # Set a larger shard size for saving
+    shard_size = 10000  # Set a larger shard size for saving
     shard = []
     shard_idx = 0
 
@@ -96,9 +97,6 @@ def run(model_name, model, tokenizer, label_encoder, target_class="clean"):
             # Store the scaled probabilities back in each item of the shard
             for item, scaled_probs in zip(shard, scaled_probs_batch):
                 item["line_quality"] = scaled_probs
-                print(item)
-
-            exit()
 
             # Convert shard to Dataset and save
             shard_dataset = Dataset.from_list(shard)
@@ -108,6 +106,8 @@ def run(model_name, model, tokenizer, label_encoder, target_class="clean"):
             shard_idx += 1
             with open(checkpoint_file, "w") as f:
                 f.write(str(shard_idx))
+
+            print(f"Saved shard {shard_idx}")
 
             # Clear the shard to start the next one
             shard = []

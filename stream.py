@@ -20,6 +20,10 @@ shard_dirs = [f"exquisiteweb/shard_5"]  # Replace NUM_SHARDS with the actual num
 data_iterator = stream_from_shards(shard_dirs)
 
 # Example of how to use the iterator to get the next row
-for row in data_iterator:
+for i, row in enumerate(data_iterator):
     # Process the row (this can be whatever you need to do with each row)
-    print(row)  # You can replace this with your actual processing logic
+    probs = row["line_quality"]
+    lines = row["text"].splitlines()
+
+    for line, prob in zip(lines, probs):
+        print(f"Line: {line}, Quality: {prob}")

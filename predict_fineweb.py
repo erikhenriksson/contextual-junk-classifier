@@ -13,49 +13,55 @@ def predict(
 ):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # Store scaled probabilities for each text in the batch
+    # List to store the number of lines for each document
+    doc_line_counts = [len(text.splitlines()) for text in text_batch]
+
+    # Concatenate all lines from all documents
+    all_lines = []
+    for text in text_batch:
+        all_lines.extend(text.splitlines())
+
+    # Process all the lines in batches
     all_scaled_probs = []
+    for i in tqdm(range(0, len(all_lines), 128), desc="Processing text batch"):
+        line_batch = all_lines[i : i + 128]
 
-    for text in tqdm(text_batch, desc="Processing text batch"):
-        # Split the text into lines
-        lines = text.splitlines()
+        # Tokenize the batch of lines
+        inputs = tokenizer(
+            line_batch,
+            return_tensors="pt",
+            padding=True,
+            truncation=True,
+            max_length=512,
+        ).to(device)
 
-        # Process the lines in smaller batches
-        line_probs = []
-        for i in range(0, len(lines), 256):
-            line_batch = lines[i : i + 256]
-            inputs = tokenizer(
-                line_batch,
-                return_tensors="pt",
-                padding=True,
-                truncation=True,
-                max_length=512,
-            ).to(device)
+        with torch.no_grad():
+            outputs = model(**inputs)
+            logits = outputs.logits.cpu().numpy()  # Move logits to CPU
 
-            with torch.no_grad():
-                outputs = model(**inputs)
-                logits = outputs.logits.cpu().numpy()  # Move logits to CPU
+        # Extract logits for the target class
+        target_class_index = label_encoder.transform([target_class])[0]
+        positive_logits = logits[:, target_class_index]
 
-            # Extract logits for the target class
-            target_class_index = label_encoder.transform([target_class])[0]
-            positive_logits = logits[:, target_class_index]
+        # Apply Platt scaling on the logits
+        scaled_probs = platt_scaler.predict_proba(positive_logits.reshape(-1, 1))[:, 1]
 
-            # Apply Platt scaling on the logits
-            scaled_probs = platt_scaler.predict_proba(positive_logits.reshape(-1, 1))[
-                :, 1
-            ]
-            line_probs.extend(
-                [round(prob, 4) for prob in scaled_probs.tolist()]
-            )  # Round to two decimals
+        # Add the scaled probabilities to the list
+        all_scaled_probs.extend([round(prob, 4) for prob in scaled_probs.tolist()])
 
-            # Free up memory
-            del outputs
-            torch.cuda.empty_cache()
+        # Free up memory
+        del outputs
+        torch.cuda.empty_cache()
 
-        # Append the list of line probabilities for this text
-        all_scaled_probs.append(line_probs)
+    # Split `all_scaled_probs` back into document-specific sections
+    doc_scaled_probs = []
+    start = 0
+    for line_count in doc_line_counts:
+        end = start + line_count
+        doc_scaled_probs.append(all_scaled_probs[start:end])
+        start = end
 
-    return all_scaled_probs
+    return doc_scaled_probs
 
 
 def run(model_name, model, tokenizer, label_encoder, target_class="clean"):

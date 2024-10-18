@@ -27,3 +27,6 @@ for i, row in enumerate(data_iterator):
 
     for line, prob in zip(lines, probs):
         print(f"Line: {line}, Quality: {prob}")
+
+    if i > 1000:
+        exit()

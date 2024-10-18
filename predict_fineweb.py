@@ -8,7 +8,7 @@ from tqdm import tqdm
 warnings.simplefilter(action="ignore", category=FutureWarning)
 
 
-def predict(
+def predict_efficient(
     text_batch, model, tokenizer, platt_scaler, label_encoder, target_class="clean"
 ):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

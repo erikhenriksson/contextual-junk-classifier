@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --ntasks=1
 #SBATCH --nodes=1
-#SBATCH --cpus-per-task=4
+#SBATCH --cpus-per-task=8
 #SBATCH --account=project_2011109
 #SBATCH --mail-user=pytorchregisterlabeling@gmail.com 
 #SBATCH --mail-type=ALL
@@ -19,6 +19,9 @@ if [[ -z "$SLURM_JOB_ID" ]]; then
     shift 
   elif [[ $1 == "6h" ]]; then
     TIME="6:00:00"
+    shift 
+  elif [[ $1 == "12h" ]]; then
+    TIME="12:00:00"
     shift 
   elif [[ $1 == "30m" ]]; then
     TIME="0:30:00"

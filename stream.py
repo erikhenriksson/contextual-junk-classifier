@@ -29,5 +29,5 @@ for i, row in enumerate(data_iterator):
         if prob < 0.1:
             print(f"Line: {line}, Quality: {prob}")
 
-    if i > 1000:
+    if i > 10:
         exit()

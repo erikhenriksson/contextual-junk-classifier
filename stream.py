@@ -14,9 +14,7 @@ def stream_from_shards(shard_dirs):
 
 NUM_SHARDS = 3
 # List of shard directories (assuming shard_0, shard_1, etc.)
-shard_dirs = [
-    f"exquisiteweb/shard_{i}" for i in range(NUM_SHARDS)
-]  # Replace NUM_SHARDS with the actual number
+shard_dirs = [f"exquisiteweb/shard_5"]  # Replace NUM_SHARDS with the actual number
 
 # Create the generator
 data_iterator = stream_from_shards(shard_dirs)

@@ -7,6 +7,66 @@ from tqdm import tqdm
 
 warnings.simplefilter(action="ignore", category=FutureWarning)
 
+from collections import defaultdict
+
+
+def predict_efficient2(
+    text_batch, model, tokenizer, platt_scaler, label_encoder, target_class="clean"
+):
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    # List to store the number of lines for each document
+    doc_line_counts = [len(text.splitlines()) for text in text_batch]
+
+    # Concatenate all lines from all documents and keep track of their original order
+    all_lines_with_idx = []
+    for doc_idx, text in enumerate(text_batch):
+        for line_idx, line in enumerate(text.splitlines()):
+            all_lines_with_idx.append((len(line.split()), doc_idx, line_idx, line))
+
+    # Sort lines by their length (number of words) for efficient padding
+    all_lines_with_idx.sort(key=lambda x: x[0])
+
+    # Process each group of lines by length
+    all_scaled_probs = [None] * len(
+        all_lines_with_idx
+    )  # Pre-allocate space for results
+    for i in tqdm(range(0, len(all_lines_with_idx), 128), desc="Processing text batch"):
+        # Extract a batch of lines with their metadata
+        batch = all_lines_with_idx[i : i + 128]
+        line_batch = [x[3] for x in batch]  # Get the actual text lines
+
+        # Tokenize the batch of lines with padding based on the longest line in the batch
+        inputs = tokenizer(
+            line_batch,
+            return_tensors="pt",
+            padding=True,
+            truncation=True,
+            max_length=512,
+        ).to(device)
+
+        with torch.no_grad():
+            outputs = model(**inputs)
+            logits = outputs.logits.cpu().numpy()  # Move logits to CPU
+
+        # Extract logits for the target class
+        target_class_index = label_encoder.transform([target_class])[0]
+        positive_logits = logits[:, target_class_index]
+
+        # Apply Platt scaling on the logits
+        scaled_probs = platt_scaler.predict_proba(positive_logits.reshape(-1, 1))[:, 1]
+
+        # Store the scaled probabilities in the original order
+        for j, (_, doc_idx, line_idx, _) in enumerate(batch):
+            all_scaled_probs[i + j] = (doc_idx, line_idx, round(scaled_probs[j], 4))
+
+    # Organize scaled probabilities back into the structure of the original text_batch
+    doc_scaled_probs = [[] for _ in text_batch]
+    for doc_idx, line_idx, prob in sorted(all_scaled_probs, key=lambda x: (x[0], x[1])):
+        doc_scaled_probs[doc_idx].append(prob)
+
+    return doc_scaled_probs
+
 
 def predict_efficient(
     text_batch, model, tokenizer, platt_scaler, label_encoder, target_class="clean"
@@ -154,7 +214,7 @@ def run(model_name, model, tokenizer, label_encoder, target_class="clean"):
         if len(shard) == shard_size:
             # Extract the 'text' field and process the lines
             text_batch = [item["text"] for item in shard]
-            scaled_probs_batch = predict_efficient(
+            scaled_probs_batch = predict_efficient2(
                 text_batch, model, tokenizer, platt_scaler, label_encoder, target_class
             )
 

@@ -22,8 +22,8 @@ def predict(
 
         # Process the lines in smaller batches
         line_probs = []
-        for i in range(0, len(lines), 64):
-            line_batch = lines[i : i + 64]
+        for i in range(0, len(lines), 128):
+            line_batch = lines[i : i + 128]
             inputs = tokenizer(
                 line_batch,
                 return_tensors="pt",

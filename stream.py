@@ -26,7 +26,8 @@ for i, row in enumerate(data_iterator):
     lines = row["text"].splitlines()
 
     for line, prob in zip(lines, probs):
-        print(f"Line: {line}, Quality: {prob}")
+        if prob < 0.1:
+            print(f"Line: {line}, Quality: {prob}")
 
     if i > 1000:
         exit()

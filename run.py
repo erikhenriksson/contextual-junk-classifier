@@ -276,7 +276,7 @@ def main(args):
             load_model_name, num_labels=num_labels
         )
 
-    if args.train:
+    if args.test or args.train:
         # Define training arguments
         training_args = TrainingArguments(
             output_dir=saved_model_name,
@@ -309,10 +309,11 @@ def main(args):
             callbacks=[EarlyStoppingCallback(early_stopping_patience=5)],
             label_smoothing=0.1,
         )
-        trainer.train()
-        trainer.save_model(saved_model_name)
+        if args.train:
+            # Train the model
+            trainer.train()
+            trainer.save_model(saved_model_name)
 
-    if args.test or args.train:
         # Evaluate the model on the test set
         eval_result = trainer.evaluate(eval_dataset=dataset["test"])
         print(f"Test set evaluation results: {eval_result}")

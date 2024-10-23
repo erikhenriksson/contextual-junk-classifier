@@ -251,7 +251,10 @@ def main(args):
 
     def tokenize(batch):
         return tokenizer(
-            batch["line"], padding="longest", truncation=True, max_length=512
+            batch["line" if args.labels == "llm" else "text"],
+            padding="longest",
+            truncation=True,
+            max_length=512,
         )
 
     dataset = dataset.map(tokenize, batched=True)

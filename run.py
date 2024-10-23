@@ -306,7 +306,7 @@ def main(args):
             eval_dataset=dataset["dev"],
             tokenizer=tokenizer,
             compute_metrics=lambda pred: compute_metrics(pred, label_encoder),
-            callbacks=[EarlyStoppingCallback(early_stopping_patience=5)],
+            callbacks=[EarlyStoppingCallback(early_stopping_patience=3)],
             label_smoothing=0.1,
         )
         if args.train:

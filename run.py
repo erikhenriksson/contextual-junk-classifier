@@ -205,9 +205,9 @@ def main(args):
 
     # Load each split into a Dataset
     data_files = {
-        "train": f"data/free_train{'_synth' if args.add_synthetic_data else ''}.jsonl",
-        "test": "data/free_test.jsonl",
-        "dev": "data/free_dev.jsonl",
+        "train": f"data/{args.labels}_labels_train{'_synth' if args.add_synthetic_data else ''}.jsonl",
+        "test": f"data/{args.labels}_labels_test.jsonl",
+        "dev": f"data/{args.labels}_labels_dev.jsonl",
     }
 
     # Load the JSONL files as a DatasetDict
@@ -236,7 +236,7 @@ def main(args):
 
     # Get model path
     saved_model_name = args.finetuned_model_path or (
-        "free_finetuned_"
+        f"{args.labels}_finetuned_"
         + args.base_model.replace("/", "_")
         + ("_with_synth" if args.add_synthetic_data else "")
     )
@@ -348,6 +348,9 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--base_model", type=str, default="microsoft/deberta-v3-base")
+    parser.add_argument(
+        "--labels", type=str, default="free", options=["llm", "predefined"]
+    )
     parser.add_argument("--learning_rate", type=float, default=0.00001)
     parser.add_argument("--pooling_type", type=str, default="cls")
     parser.add_argument("--add_synthetic_data", action="store_true")

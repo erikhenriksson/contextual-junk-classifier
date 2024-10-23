@@ -280,7 +280,7 @@ def main(args):
         # Define training arguments
         training_args = TrainingArguments(
             output_dir=saved_model_name,
-            learning_rate=1e-5,
+            learning_rate=args.learning_rate or 0.00001,
             eval_strategy="steps",
             eval_steps=500,
             save_strategy="steps",
@@ -348,6 +348,7 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--base_model", type=str, default="microsoft/deberta-v3-base")
+    parser.add_argument("--learning_rate", type=int, default=0.00001)
     parser.add_argument("--pooling_type", type=str, default="cls")
     parser.add_argument("--add_synthetic_data", action="store_true")
     parser.add_argument("--train", action="store_true")
